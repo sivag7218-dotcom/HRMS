@@ -8,6 +8,8 @@ const router = express.Router();
 const { db } = require("../config/database");
 const { auth, admin, hr } = require("../middleware/auth");
 const { findEmployeeByUserId } = require("../utils/helpers");
+const payrollCtrl = require('../controllers/payroll.controller');
+const payrollService = require('../services/payroll.service');
 
 /* ============ PAYROLL SETTINGS ============ */
 
@@ -29,6 +31,180 @@ router.get("/defaults", auth, hr, async (req, res) => {
     c.end();
     res.json(r[0] || {});
 });
+
+/* ============ NEW MODERN API ENDPOINTS (Phase-1) ============ */
+
+// Modern v2 API endpoints to avoid clashing with legacy routes
+// POST /api/payroll/v2/run  { year: 2026, month: 2 }
+router.post('/v2/run', auth, admin, payrollCtrl.runPayroll);
+
+// GET /api/payroll/v2/payslips/:employeeId
+router.get('/v2/payslips/:employeeId', auth, payrollCtrl.listPayslips);
+
+// GET /api/payroll/v2/payslips/:employeeId/:year/:month
+router.get('/v2/payslips/:employeeId/:year/:month', auth, payrollCtrl.payslipDetail);
+
+// GET /api/payroll/v2/structure/:employeeId
+router.get('/v2/structure/:employeeId', auth, payrollCtrl.getSalaryStructure);
+
+// GET /api/payroll/v2/attendance-impact/:employeeId?year=2026&month=2
+router.get('/v2/attendance-impact/:employeeId', auth, payrollCtrl.getAttendanceImpact);
+
+// GET /api/payroll/v2/run?month=YYYY-MM  -> summary for a month (admin/hr)
+router.get('/v2/run', auth, hr, async (req, res) => {
+    const { month } = req.query; // expect YYYY-MM
+    if (!month) return res.status(400).json({ error: 'month query required (YYYY-MM)' });
+    const parts = month.split('-');
+    if (parts.length !== 2) return res.status(400).json({ error: 'month format must be YYYY-MM' });
+    const year = Number(parts[0]);
+    const mon = Number(parts[1]);
+    const c = await db();
+    try {
+        const [rows] = await c.query(
+            `SELECT r.id as run_id, r.status, r.started_at, r.completed_at, COUNT(s.id) as employee_count, SUM(s.gross_earnings) as total_gross, SUM(s.net_pay) as total_net
+             FROM payroll_runs r
+             JOIN payroll_cycles cy ON cy.id = r.cycle_id
+             LEFT JOIN payroll_employee_salaries s ON s.run_id = r.id
+             WHERE cy.year = ? AND cy.month = ?
+             GROUP BY r.id`,
+            [year, mon]
+        );
+        c.end();
+        res.json(rows);
+    } catch (err) {
+        c.end();
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/payroll/v2/run/:employeeId?month=YYYY-MM -> employee-level payroll breakup
+router.get('/v2/run/:employeeId', auth, hr, async (req, res) => {
+    const { month } = req.query;
+    const employeeId = Number(req.params.employeeId);
+    if (!month) return res.status(400).json({ error: 'month query required (YYYY-MM)' });
+    const parts = month.split('-');
+    const year = Number(parts[0]);
+    const mon = Number(parts[1]);
+    const c = await db();
+    try {
+        const [rows] = await c.query(
+            `SELECT s.* FROM payroll_employee_salaries s JOIN payroll_runs r ON r.id = s.run_id JOIN payroll_cycles cy ON cy.id = r.cycle_id WHERE s.employee_id = ? AND cy.year = ? AND cy.month = ? LIMIT 1`,
+            [employeeId, year, mon]
+        );
+        c.end();
+        res.json(rows[0] || null);
+    } catch (err) {
+        c.end();
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/payroll/v2/earnings/:employeeId?month=YYYY-MM
+router.get('/v2/earnings/:employeeId', auth, async (req, res) => {
+    const { month } = req.query;
+    const employeeId = Number(req.params.employeeId);
+    if (!month) return res.status(400).json({ error: 'month query required (YYYY-MM)' });
+    const parts = month.split('-');
+    const year = Number(parts[0]);
+    const mon = Number(parts[1]);
+    const c = await db();
+    try {
+        const [rows] = await c.query(
+            `SELECT b.component_code, b.component_name, b.amount FROM payroll_salary_breakups b
+             JOIN payroll_employee_salaries s ON s.id = b.employee_salary_id
+             JOIN payroll_runs r ON r.id = s.run_id
+             JOIN payroll_cycles cy ON cy.id = r.cycle_id
+             WHERE s.employee_id = ? AND cy.year = ? AND cy.month = ? AND b.component_type = 'EARNING'`,
+            [employeeId, year, mon]
+        );
+        c.end();
+        res.json(rows);
+    } catch (err) {
+        c.end();
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/payroll/v2/deductions/:employeeId?month=YYYY-MM
+router.get('/v2/deductions/:employeeId', auth, async (req, res) => {
+    const { month } = req.query;
+    const employeeId = Number(req.params.employeeId);
+    if (!month) return res.status(400).json({ error: 'month query required (YYYY-MM)' });
+    const parts = month.split('-');
+    const year = Number(parts[0]);
+    const mon = Number(parts[1]);
+    const c = await db();
+    try {
+        const [rows] = await c.query(
+            `SELECT b.component_code, b.component_name, b.amount FROM payroll_salary_breakups b
+             JOIN payroll_employee_salaries s ON s.id = b.employee_salary_id
+             JOIN payroll_runs r ON r.id = s.run_id
+             JOIN payroll_cycles cy ON cy.id = r.cycle_id
+             WHERE s.employee_id = ? AND cy.year = ? AND cy.month = ? AND b.component_type = 'DEDUCTION'`,
+            [employeeId, year, mon]
+        );
+        c.end();
+        res.json(rows);
+    } catch (err) {
+        c.end();
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/payroll/v2/tax-summary/:employeeId?year=YYYY
+router.get('/v2/tax-summary/:employeeId', auth, async (req, res) => {
+    const year = Number(req.query.year);
+    const employeeId = Number(req.params.employeeId);
+    if (!year) return res.status(400).json({ error: 'year query required' });
+    const c = await db();
+    try {
+        const [rows] = await c.query(
+            `SELECT cy.year, td.deduction_code, SUM(td.amount) as total FROM payroll_tax_deductions td
+             JOIN payroll_employee_salaries s ON s.id = td.employee_salary_id
+             JOIN payroll_runs r ON r.id = s.run_id
+             JOIN payroll_cycles cy ON cy.id = r.cycle_id
+             WHERE s.employee_id = ? AND cy.year = ? GROUP BY td.deduction_code`,
+            [employeeId, year]
+        );
+        c.end();
+        res.json(rows);
+    } catch (err) {
+        c.end();
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/payroll/v2/form16/:employeeId?year=YYYY  (placeholder metadata)
+router.get('/v2/form16/:employeeId', auth, async (req, res) => {
+    const year = Number(req.query.year);
+    const employeeId = Number(req.params.employeeId);
+    if (!year) return res.status(400).json({ error: 'year query required' });
+    // For now return basic metadata; actual PDF generation not implemented
+    res.json({ employee_id: employeeId, year, form16_available: false, note: 'PDF generation not implemented' });
+});
+
+// GET /api/payroll/v2/form16/:employeeId/:year/download (placeholder)
+router.get('/v2/form16/:employeeId/:year/download', auth, async (req, res) => {
+    res.status(501).json({ error: 'Form16 PDF download not implemented' });
+});
+
+// GET /api/payroll/v2/payslips/:employeeId/:month (month=YYYY-MM)
+router.get('/v2/payslips/:employeeId/:month', auth, async (req, res) => {
+    const employeeId = Number(req.params.employeeId);
+    const month = req.params.month; // YYYY-MM
+    if (!month) return res.status(400).json({ error: 'month required (YYYY-MM)' });
+    const parts = month.split('-');
+    const year = Number(parts[0]);
+    const mon = Number(parts[1]);
+    try {
+        const detail = await payrollService.getPayslipDetail(employeeId, year, mon);
+        if (!detail) return res.status(404).json({ error: 'Payslip not found' });
+        res.json({ success: true, payslip: JSON.parse(detail) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 // Update payroll defaults
 router.put("/defaults/:id", auth, admin, async (req, res) => {
