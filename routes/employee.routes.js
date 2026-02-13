@@ -28,7 +28,7 @@ const uploadProfileImage = multer({
   fileFilter: function (req, file, cb) {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
+      path.extname(file.originalname).toLowerCase(),
     );
     const mimetype = allowedTypes.test(file.mimetype);
 
@@ -60,7 +60,7 @@ router.get("/my-team/list", auth, async (req, res) => {
     const emp = await findEmployeeByUserId(req.user.id);
     console.log(
       "Employee found:",
-      emp ? `${emp.FirstName} ${emp.LastName} (ID: ${emp.id})` : "NOT FOUND"
+      emp ? `${emp.FirstName} ${emp.LastName} (ID: ${emp.id})` : "NOT FOUND",
     );
 
     if (!emp) {
@@ -84,7 +84,7 @@ router.get("/my-team/list", auth, async (req, res) => {
              LEFT JOIN locations l ON e.LocationId = l.id
              WHERE e.reporting_manager_id = ? AND e.EmploymentStatus = 'Working'
              ORDER BY e.FirstName, e.LastName`,
-      [emp.id]
+      [emp.id],
     );
 
     console.log("Reporting team count:", reportingTeam.length);
@@ -115,7 +115,7 @@ router.get("/my-team/list", auth, async (req, res) => {
                  LEFT JOIN locations l ON e.LocationId = l.id
                  WHERE e.reporting_manager_id = ? AND e.id != ? AND e.EmploymentStatus = 'Working'
                  ORDER BY e.FirstName, e.LastName`,
-        [emp.reporting_manager_id, emp.id]
+        [emp.reporting_manager_id, emp.id],
       );
 
       console.log("Co-team count:", coTeam.length);
@@ -208,7 +208,7 @@ router.get("/:id/details", auth, async (req, res) => {
          LEFT JOIN holiday_lists hl ON e.holiday_list_id = hl.id
          LEFT JOIN expense_policies ep ON e.expense_policy_id = ep.id
          WHERE e.id = ?`,
-    [req.params.id]
+    [req.params.id],
   );
 
   if (employee.length === 0) {
@@ -222,7 +222,7 @@ router.get("/:id/details", auth, async (req, res) => {
          FROM attendance 
          WHERE employee_id = ? AND attendance_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
          ORDER BY attendance_date DESC`,
-    [req.params.id]
+    [req.params.id],
   );
 
   // Get leave balance
@@ -231,7 +231,7 @@ router.get("/:id/details", auth, async (req, res) => {
          FROM leaves 
          WHERE employee_id = ? AND status = 'approved' AND YEAR(start_date) = YEAR(CURDATE())
          GROUP BY leave_type`,
-    [req.params.id]
+    [req.params.id],
   );
 
   // Get pending requests
@@ -240,7 +240,7 @@ router.get("/:id/details", auth, async (req, res) => {
          FROM leaves 
          WHERE employee_id = ? AND status = 'pending'
          ORDER BY applied_at DESC`,
-    [req.params.id]
+    [req.params.id],
   );
 
   c.end();
@@ -261,9 +261,26 @@ router.get("/:id/details", auth, async (req, res) => {
 
 // Update employee
 router.put("/:id", auth, hr, async (req, res) => {
+  // Only allow valid columns to be updated
+  const allowedFields = [
+    "reporting_manager_id",
+    "leave_plan_id",
+    "shift_policy_id",
+    "attendance_policy_id",
+    "weekly_off_policy_id",
+    "PayGradeId",
+    "lpa",
+    // add more allowed fields as needed
+  ];
+  const updateData = {};
+  for (const key of allowedFields) {
+    if (req.body[key] !== undefined) {
+      updateData[key] = req.body[key];
+    }
+  }
   const c = await db();
   await c.query("UPDATE employees SET ? WHERE id = ?", [
-    req.body,
+    updateData,
     req.params.id,
   ]);
   c.end();
@@ -293,7 +310,7 @@ router.get("/reporting/:managerId", auth, async (req, res) => {
   const c = await db();
   const [r] = await c.query(
     "SELECT * FROM employees WHERE reporting_manager_id = ?",
-    [req.params.managerId]
+    [req.params.managerId],
   );
   c.end();
   res.json(r);
@@ -305,7 +322,7 @@ router.get("/search/query", auth, async (req, res) => {
   const c = await db();
   const [r] = await c.query(
     "SELECT * FROM employees WHERE FirstName LIKE ? OR LastName LIKE ? OR WorkEmail LIKE ? LIMIT 20",
-    [`%${q}%`, `%${q}%`, `%${q}%`]
+    [`%${q}%`, `%${q}%`, `%${q}%`],
   );
   c.end();
   res.json(r);
@@ -345,7 +362,7 @@ router.get("/profile/me", auth, async (req, res) => {
          LEFT JOIN pay_grades pg ON e.PayGradeId = pg.id
          LEFT JOIN employees mgr ON e.reporting_manager_id = mgr.id
          WHERE e.id = ?`,
-    [emp.id]
+    [emp.id],
   );
   c.end();
 
@@ -414,7 +431,7 @@ router.post(
         .status(500)
         .json({ error: error.message || "Failed to upload profile image" });
     }
-  }
+  },
 );
 
 // Get profile image
@@ -423,7 +440,7 @@ router.get("/profile/image/:employeeId", auth, async (req, res) => {
     const c = await db();
     const [rows] = await c.query(
       "SELECT profile_image FROM employees WHERE id = ?",
-      [req.params.employeeId]
+      [req.params.employeeId],
     );
     c.end();
 
@@ -455,7 +472,7 @@ router.get("/my-team/reporting", auth, async (req, res) => {
              LEFT JOIN locations l ON e.LocationId = l.id
              WHERE e.reporting_manager_id = ? AND e.EmploymentStatus = 'Working'
              ORDER BY e.FirstName, e.LastName`,
-      [emp.id]
+      [emp.id],
     );
     c.end();
     res.json({ team: reportingTeam, message: "Your reporting team" });
@@ -484,7 +501,7 @@ router.get("/my-team/co-team", auth, async (req, res) => {
              LEFT JOIN locations l ON e.LocationId = l.id
              WHERE e.reporting_manager_id = ? AND e.id != ? AND e.EmploymentStatus = 'Working'
              ORDER BY e.FirstName, e.LastName`,
-      [emp.reporting_manager_id, emp.id]
+      [emp.reporting_manager_id, emp.id],
     );
     c.end();
     res.json({ team: coTeam, message: "Your co-team members" });
@@ -508,7 +525,7 @@ router.get("/my-team/reporting/:employeeId", auth, async (req, res) => {
              LEFT JOIN locations l ON e.LocationId = l.id
              WHERE e.reporting_manager_id = ? AND e.EmploymentStatus = 'Working'
              ORDER BY e.FirstName, e.LastName`,
-      [employeeId]
+      [employeeId],
     );
     c.end();
     res.json({
@@ -531,7 +548,7 @@ router.get("/my-team/co-team/:employeeId", auth, async (req, res) => {
     // Get the reporting manager id for the given employee
     const [empRows] = await c.query(
       "SELECT reporting_manager_id FROM employees WHERE id = ?",
-      [employeeId]
+      [employeeId],
     );
     if (!empRows.length || !empRows[0].reporting_manager_id) {
       c.end();
@@ -547,7 +564,7 @@ router.get("/my-team/co-team/:employeeId", auth, async (req, res) => {
              LEFT JOIN locations l ON e.LocationId = l.id
              WHERE e.reporting_manager_id = ? AND e.id != ? AND e.EmploymentStatus = 'Working'
              ORDER BY e.FirstName, e.LastName`,
-      [reportingManagerId, employeeId]
+      [reportingManagerId, employeeId],
     );
     c.end();
     res.json({
