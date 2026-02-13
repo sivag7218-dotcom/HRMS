@@ -10,6 +10,7 @@ const { auth, admin, hr } = require("../middleware/auth");
 const { findEmployeeByUserId } = require("../utils/helpers");
 const payrollCtrl = require('../controllers/payroll.controller');
 const payrollService = require('../services/payroll.service');
+const payrollAdmin = require('../controllers/payroll.admin.controller');
 
 /* ============ PAYROLL SETTINGS ============ */
 
@@ -204,6 +205,29 @@ router.get('/v2/payslips/:employeeId/:month', auth, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// -------- Admin/HR stubs (scaffolded) --------
+// POST /api/payroll/v2/runs/preview
+router.post('/v2/runs/preview', auth, hr, payrollAdmin.previewRun);
+
+// POST /api/payroll/v2/runs/:runId/lock
+router.post('/v2/runs/:runId/lock', auth, hr, payrollAdmin.lockRun);
+
+// PUT /api/payroll/v2/cycles/:cycleId/lock
+router.put('/v2/cycles/:cycleId/lock', auth, hr, payrollAdmin.lockCycle);
+
+// Tax profile (employee-level)
+router.get('/v2/employees/:employeeId/tax-profile', auth, hr, payrollAdmin.getTaxProfile);
+router.put('/v2/employees/:employeeId/tax-profile', auth, hr, payrollAdmin.putTaxProfile);
+
+// Bank account (employee-level)
+router.get('/v2/employees/:employeeId/bank-account', auth, hr, payrollAdmin.getBankAccount);
+router.put('/v2/employees/:employeeId/bank-account', auth, hr, payrollAdmin.putBankAccount);
+
+// Payouts
+router.post('/v2/payouts/initiate', auth, hr, payrollAdmin.initiatePayout);
+router.get('/v2/payouts/:runId', auth, hr, payrollAdmin.getPayout);
+router.put('/v2/payouts/:payoutId/status', auth, hr, payrollAdmin.updatePayoutStatus);
 
 
 // Update payroll defaults

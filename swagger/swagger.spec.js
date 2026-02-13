@@ -7041,6 +7041,26 @@ try {
   // Ignore environment where filesystem is not available
 }
 
+// Ensure a top-level `Payroll` tag exists and assign it to payroll-related paths
+try {
+  swaggerSpec.tags = swaggerSpec.tags || [];
+  if (!swaggerSpec.tags.find(t => t.name === 'Payroll')) {
+    swaggerSpec.tags.push({ name: 'Payroll', description: 'Payroll and payslips APIs (v2 and legacy)' });
+  }
+
+  Object.keys(swaggerSpec.paths || {}).forEach((p) => {
+    if (p.includes('/payroll') || p.includes('/payslips') || p.includes('/payslip')) {
+      const ops = swaggerSpec.paths[p];
+      Object.keys(ops).forEach((m) => {
+        ops[m].tags = ops[m].tags || [];
+        if (!ops[m].tags.includes('Payroll')) ops[m].tags.unshift('Payroll');
+      });
+    }
+  });
+} catch (e) {
+  // ignore
+}
+
 // --- PATCH: Add Modern Payroll Component-Based APIs ---
 Object.assign(swaggerSpec.paths, {
   // ============================================
