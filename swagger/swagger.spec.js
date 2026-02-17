@@ -176,6 +176,152 @@ const swaggerSpec = {
       },
     },
 
+    // ============ PAYROLL MASTER DATA ============
+    "/api/payroll/components": {
+      get: {
+        summary: "List Salary Components",
+        tags: ["Payroll Master"],
+        responses: { 200: { description: "List of salary components" } },
+      },
+      post: {
+        summary: "Create Salary Component",
+        tags: ["Payroll Master"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, value: { type: "number" } }, required: ["name", "type", "value"] },
+            },
+          },
+        },
+        responses: { 200: { description: "Component created" } },
+      },
+    },
+    "/api/payroll/components/{component_id}": {
+      get: {
+        summary: "Get Salary Component",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "component_id", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Component details" } },
+      },
+      put: {
+        summary: "Update Salary Component",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "component_id", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, value: { type: "number" } } },
+            },
+          },
+        },
+        responses: { 200: { description: "Component updated" } },
+      },
+      delete: {
+        summary: "Delete Salary Component",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "component_id", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Component deleted" } },
+      },
+    },
+    "/api/payroll/templates": {
+      get: {
+        summary: "List Salary Templates",
+        tags: ["Payroll Master"],
+        responses: { 200: { description: "List of salary templates" } },
+      },
+      post: {
+        summary: "Create Salary Template",
+        tags: ["Payroll Master"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { name: { type: "string" }, components: { type: "array", items: { type: "integer" } } }, required: ["name", "components"] },
+            },
+          },
+        },
+        responses: { 200: { description: "Template created" } },
+      },
+    },
+    "/api/payroll/templates/{id}": {
+      get: {
+        summary: "Get Salary Template",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Template details" } },
+      },
+      put: {
+        summary: "Update Salary Template",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { name: { type: "string" }, components: { type: "array", items: { type: "integer" } } } },
+            },
+          },
+        },
+        responses: { 200: { description: "Template updated" } },
+      },
+      delete: {
+        summary: "Delete Salary Template",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Template deleted" } },
+      },
+    },
+    "/api/payroll/structures": {
+      get: {
+        summary: "List Salary Structures",
+        tags: ["Payroll Master"],
+        responses: { 200: { description: "List of salary structures" } },
+      },
+      post: {
+        summary: "Create Salary Structure",
+        tags: ["Payroll Master"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { employee_id: { type: "integer" }, template_id: { type: "integer" }, effective_date: { type: "string", format: "date" } }, required: ["employee_id", "template_id", "effective_date"] },
+            },
+          },
+        },
+        responses: { 200: { description: "Structure created" } },
+      },
+    },
+    "/api/payroll/structures/{id}": {
+      get: {
+        summary: "Get Salary Structure",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Structure details" } },
+      },
+      put: {
+        summary: "Update Salary Structure",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { template_id: { type: "integer" }, effective_date: { type: "string", format: "date" } } },
+            },
+          },
+        },
+        responses: { 200: { description: "Structure updated" } },
+      },
+      delete: {
+        summary: "Delete Salary Structure",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Structure deleted" } },
+      },
+    },
+
     // ============ AUTHENTICATION ============
     "/api/auth/login": {
       post: {
