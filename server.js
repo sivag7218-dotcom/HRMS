@@ -18,8 +18,8 @@ const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
 
-// Import Swagger specification
-const swaggerSpec = require("./swagger/swagger.spec");
+// Import Swagger specification (modular main)
+const swaggerSpec = require("./swagger/swagger.spec.js");
 
 // Import configurations
 const { DB, db } = require("./config/database");
