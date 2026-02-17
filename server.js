@@ -298,6 +298,10 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/payslips", payrollRoutes); // Also mount for payslips endpoints
 
+// Payroll Master CRUD Routes
+const payrollMasterRoutes = require("./routes/payroll.master.routes");
+app.use("/api/payroll/master", payrollMasterRoutes);
+
 // Upload Routes
 app.use("/api/upload", uploadRoutes);
 
