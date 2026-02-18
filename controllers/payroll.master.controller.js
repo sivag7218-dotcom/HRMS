@@ -23,3 +23,9 @@ exports.createStructure = (req, res) => payrollMasterService.createStructure(req
 exports.getStructure = (req, res) => payrollMasterService.getStructure(req, res);
 exports.updateStructure = (req, res) => payrollMasterService.updateStructure(req, res);
 exports.deleteStructure = (req, res) => payrollMasterService.deleteStructure(req, res);
+
+// Structure Composition (template-component mapping)
+exports.listComposition = (req, res) => payrollMasterService.listComposition(req, res);
+exports.addComposition = (req, res) => payrollMasterService.addComposition(req, res);
+exports.updateComposition = (req, res) => payrollMasterService.updateComposition(req, res);
+exports.deleteComposition = (req, res) => payrollMasterService.deleteComposition(req, res);

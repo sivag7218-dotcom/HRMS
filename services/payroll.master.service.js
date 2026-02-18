@@ -170,3 +170,50 @@ exports.deleteStructure = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+// --- Structure Composition (template-component mapping) ---
+exports.listComposition = async (req, res) => {
+  try {
+    const c = await db();
+    const [rows] = await c.query('SELECT * FROM structure_composition WHERE template_id = ?', [req.params.template_id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+exports.addComposition = async (req, res) => {
+  try {
+    const c = await db();
+    const { component_id, formula_or_value, created_by } = req.body;
+    const [result] = await c.query(
+      'INSERT INTO structure_composition (template_id, component_id, formula_or_value, created_by) VALUES (?, ?, ?, ?)',
+      [req.params.template_id, component_id, formula_or_value, created_by]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+exports.updateComposition = async (req, res) => {
+  try {
+    const c = await db();
+    const { formula_or_value } = req.body;
+    const [result] = await c.query(
+      'UPDATE structure_composition SET formula_or_value=? WHERE composition_id=? AND template_id=?',
+      [formula_or_value, req.params.composition_id, req.params.template_id]
+    );
+    res.json({ success: result.affectedRows > 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+exports.deleteComposition = async (req, res) => {
+  try {
+    const c = await db();
+    const [result] = await c.query('DELETE FROM structure_composition WHERE composition_id = ? AND template_id = ?', [req.params.composition_id, req.params.template_id]);
+    res.json({ success: result.affectedRows > 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

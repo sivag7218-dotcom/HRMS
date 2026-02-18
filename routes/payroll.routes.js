@@ -486,19 +486,21 @@ router.get("/components", auth, hrOrAdmin, async (req, res) => {
 router.post("/components", auth, hrOrAdmin, async (req, res) => {
     try {
         const c = await db();
-        const { name, type, is_statutory, is_taxable, calculation_type } = req.body;
-        
-        if (!name || !type || !calculation_type) {
+        const { name, component_type,  calculation_type, value, percentage_of_code, taxable, prorated, sequence, notes } = req.body;
+        if (!name || !component_type || !calculation_type) {
             c.end();
             return res.status(400).json({ success: false, error: "Missing required fields" });
         }
-        
-        const [result] = await c.query("INSERT INTO salary_components SET ?", { 
-            name, 
-            type, 
-            is_statutory: is_statutory || 0, 
-            is_taxable: is_taxable || 1, 
+        const [result] = await c.query("INSERT INTO salary_components SET ?", {
+            name,
+            component_type,
             calculation_type,
+            value: value || 0,
+            percentage_of_code: percentage_of_code || null,
+            taxable: typeof taxable !== 'undefined' ? taxable : 1,
+            prorated: typeof prorated !== 'undefined' ? prorated : 0,
+            sequence: sequence || 10,
+            notes: notes || null,
             created_by: req.user.id
         });
         c.end();
@@ -511,7 +513,7 @@ router.post("/components", auth, hrOrAdmin, async (req, res) => {
 router.put("/components/:id", auth, hrOrAdmin, async (req, res) => {
     try {
         const c = await db();
-        await c.query("UPDATE salary_components SET ? WHERE component_id = ?", [req.body, req.params.id]);
+        await c.query("UPDATE salary_components SET ? WHERE id = ?", [req.body, req.params.id]);
         c.end();
         res.json({ success: true, message: "Salary component updated successfully" });
     } catch (error) {
@@ -522,7 +524,7 @@ router.put("/components/:id", auth, hrOrAdmin, async (req, res) => {
 router.delete("/components/:id", auth, hrOrAdmin, async (req, res) => {
     try {
         const c = await db();
-        await c.query("DELETE FROM salary_components WHERE component_id = ?", [req.params.id]);
+        await c.query("DELETE FROM salary_components WHERE id = ?", [req.params.id]);
         c.end();
         res.json({ success: true, message: "Salary component deleted successfully" });
     } catch (error) {
@@ -586,7 +588,7 @@ router.delete("/templates/:id", auth, hrOrAdmin, async (req, res) => {
 // ---- Structure Composition CRUD ----
 router.get("/template/:templateId/components", auth, hrOrAdmin, async (req, res) => {
     const c = await db();
-    const [rows] = await c.query("SELECT sc.*, comp.name, comp.type FROM structure_composition sc JOIN salary_components comp ON sc.component_id = comp.component_id WHERE sc.template_id = ? ORDER BY sc.composition_id ASC", [req.params.templateId]);
+    const [rows] = await c.query("SELECT sc.*, comp.name, comp.component_type FROM structure_composition sc JOIN salary_components comp ON sc.component_id = comp.id WHERE sc.template_id = ? ORDER BY sc.composition_id ASC", [req.params.templateId]);
     c.end();
     res.json(rows);
 });
@@ -730,7 +732,7 @@ router.get("/payslips/:id", auth, hrOrAdmin, async (req, res) => {
 // ---- Payslip Items (Read Only) ----
 router.get("/payslips/:id/items", auth, hrOrAdmin, async (req, res) => {
     const c = await db();
-    const [rows] = await c.query("SELECT pi.*, sc.name, sc.type FROM payslip_items pi JOIN salary_components sc ON pi.component_id = sc.component_id WHERE pi.payslip_id = ?", [req.params.id]);
+    const [rows] = await c.query("SELECT pi.*, sc.name, sc.component_type FROM payslip_items pi JOIN salary_components sc ON pi.component_id = sc.id WHERE pi.payslip_id = ?", [req.params.id]);
     c.end();
     res.json(rows);
 });
@@ -775,9 +777,9 @@ router.post("/run", auth, hrOrAdmin, async (req, res) => {
                 } else if (comp.amount_type === 'percentage') {
                     amount = (comp.value / 100) * ctc;
                 }
-                items.push({ component_id: comp.component_id, amount, component_type: comp.type });
-                if (comp.type === 'earning' || comp.type === 'reimbursement') net_pay += amount;
-                if (comp.type === 'deduction' || comp.type === 'contribution') net_pay -= amount;
+                items.push({ component_id: comp.id, amount, component_type: comp.component_type });
+                if (comp.component_type === 'EARNING') net_pay += amount;
+                if (comp.component_type === 'DEDUCTION') net_pay -= amount;
             }
 
             // Insert payslip

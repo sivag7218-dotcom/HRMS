@@ -24,4 +24,10 @@ router.get('/structures/:id', ctrl.getStructure);
 router.put('/structures/:id', ctrl.updateStructure);
 router.delete('/structures/:id', ctrl.deleteStructure);
 
+// Structure Composition (template-component mapping)
+router.get('/templates/:template_id/composition', ctrl.listComposition);
+router.post('/templates/:template_id/composition', ctrl.addComposition);
+router.put('/templates/:template_id/composition/:composition_id', ctrl.updateComposition);
+router.delete('/templates/:template_id/composition/:composition_id', ctrl.deleteComposition);
+
 module.exports = router;
