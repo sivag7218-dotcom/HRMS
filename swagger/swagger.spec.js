@@ -100,7 +100,216 @@ const swaggerSpec = {
             enum: ["Office", "WFH", "Remote", "Hybrid"],
             description:
               "Work mode - Office (on-site), WFH (Work From Home), Remote (any remote location), Hybrid (mixed mode)",
-            example: "WFH",
+        "/api/payroll/master/components": {
+          get: {
+            summary: "List Salary Components (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            responses: { 200: { description: "List of salary components" } },
+          },
+          post: {
+            summary: "Create Salary Component (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      type: { type: "string", enum: ["Earning", "Deduction", "Reimbursement"] },
+                      is_statutory: { type: "boolean" },
+                      is_taxable: { type: "boolean" },
+                      calculation_type: { type: "string", enum: ["Flat", "Percentage", "Formula"] },
+                      created_by: { type: "integer" }
+                    },
+                    required: ["name", "type", "is_statutory", "is_taxable", "calculation_type", "created_by"]
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: "Component created" } },
+          },
+        },
+        "/api/payroll/master/components/{component_id}": {
+          get: {
+            summary: "Get Salary Component (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "component_id", in: "path", required: true, schema: { type: "integer" } } ],
+            responses: { 200: { description: "Component details" } },
+          },
+          put: {
+            summary: "Update Salary Component (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "component_id", in: "path", required: true, schema: { type: "integer" } } ],
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      type: { type: "string", enum: ["Earning", "Deduction", "Reimbursement"] },
+                      is_statutory: { type: "boolean" },
+                      is_taxable: { type: "boolean" },
+                      calculation_type: { type: "string", enum: ["Flat", "Percentage", "Formula"] }
+                    },
+                    required: ["name", "type", "is_statutory", "is_taxable", "calculation_type"]
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: "Component updated" } },
+          },
+          delete: {
+            summary: "Delete Salary Component (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "component_id", in: "path", required: true, schema: { type: "integer" } } ],
+            responses: { 200: { description: "Component deleted" } },
+          },
+        },
+        "/api/payroll/master/templates": {
+          get: {
+            summary: "List Salary Templates (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            responses: { 200: { description: "List of salary templates" } },
+          },
+          post: {
+            summary: "Create Salary Template (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      template_name: { type: "string" },
+                      description: { type: "string" },
+                      created_by: { type: "integer" }
+                    },
+                    required: ["template_name", "created_by"]
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: "Template created" } },
+          },
+        },
+        "/api/payroll/master/templates/{id}": {
+          get: {
+            summary: "Get Salary Template (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+            responses: { 200: { description: "Template details" } },
+          },
+          put: {
+            summary: "Update Salary Template (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      template_name: { type: "string" },
+                      description: { type: "string" }
+                    },
+                    required: ["template_name"]
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: "Template updated" } },
+          },
+          delete: {
+            summary: "Delete Salary Template (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+            responses: { 200: { description: "Template deleted" } },
+          },
+        },
+        "/api/payroll/master/structures": {
+          get: {
+            summary: "List Salary Structures (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            responses: { 200: { description: "List of salary structures" } },
+          },
+          post: {
+            summary: "Create Salary Structure (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      employee_id: { type: "integer" },
+                      component_name: { type: "string" },
+                      component_value: { type: "number" }
+                    },
+                    required: ["employee_id", "component_name", "component_value"]
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: "Structure created" } },
+          },
+        },
+        "/api/payroll/master/structures/{id}": {
+          get: {
+            summary: "Get Salary Structure (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+            responses: { 200: { description: "Structure details" } },
+          },
+          put: {
+            summary: "Update Salary Structure (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      component_name: { type: "string" },
+                      component_value: { type: "number" }
+                    },
+                    required: ["component_name", "component_value"]
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: "Structure updated" } },
+          },
+          delete: {
+            summary: "Delete Salary Structure (Modular)",
+            tags: ["Payroll Master"],
+            security: [{ bearerAuth: [] }],
+            parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+            responses: { 200: { description: "Structure deleted" } },
+          },
+        },
           },
           location: { type: "string", example: "Home - Mumbai" },
           notes: { type: "string", example: "Working from home today" },

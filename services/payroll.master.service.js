@@ -1,7 +1,7 @@
 // Payroll Master Service
 // Handles business logic for salary components, templates, and structures
 
-const db = require('../config/database');
+const { db } = require('../config/database');
 
 // --- Salary Components ---
 exports.listComponents = async (req, res) => {
@@ -29,7 +29,7 @@ exports.createComponent = async (req, res) => {
 exports.getComponent = async (req, res) => {
   try {
     const c = await db();
-    const [rows] = await c.query('SELECT * FROM salary_components WHERE component_id = ?', [req.params.id]);
+    const [rows] = await c.query('SELECT * FROM salary_components WHERE component_id = ?', [req.params.component_id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
   } catch (err) {
@@ -42,7 +42,7 @@ exports.updateComponent = async (req, res) => {
     const { name, type, is_statutory, is_taxable, calculation_type } = req.body;
     const [result] = await c.query(
       'UPDATE salary_components SET name=?, type=?, is_statutory=?, is_taxable=?, calculation_type=? WHERE component_id=?',
-      [name, type, is_statutory, is_taxable, calculation_type, req.params.id]
+      [name, type, is_statutory, is_taxable, calculation_type, req.params.component_id]
     );
     res.json({ success: result.affectedRows > 0 });
   } catch (err) {
@@ -52,7 +52,7 @@ exports.updateComponent = async (req, res) => {
 exports.deleteComponent = async (req, res) => {
   try {
     const c = await db();
-    const [result] = await c.query('DELETE FROM salary_components WHERE component_id = ?', [req.params.id]);
+    const [result] = await c.query('DELETE FROM salary_components WHERE component_id = ?', [req.params.component_id]);
     res.json({ success: result.affectedRows > 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
