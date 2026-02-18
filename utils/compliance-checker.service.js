@@ -221,21 +221,21 @@ class ComplianceChecker {
             `, [today]);
 
             // Department breakdown
-            const [deptBreakdown] = await c.query(`
-                SELECT 
-                    d.DepartmentName as department,
-                    COUNT(DISTINCT e.id) as total,
-                    COUNT(DISTINCT t.employee_id) as submitted,
-                    ROUND(COUNT(DISTINCT t.employee_id) * 100.0 / COUNT(DISTINCT e.id), 2) as rate
-                FROM departments d
-                JOIN employees e ON d.id = e.DepartmentID
-                LEFT JOIN timesheets t ON e.id = t.employee_id 
-                    AND t.date = ? 
-                    AND t.status IN ('submitted', 'verified')
-                WHERE e.EmploymentStatus = 'Working'
-                GROUP BY d.id, d.DepartmentName
-                ORDER BY rate DESC
-            `, [today]);
+                const [deptBreakdown] = await c.query(`
+                    SELECT 
+                        d.name as department,
+                        COUNT(DISTINCT e.id) as total,
+                        COUNT(DISTINCT t.employee_id) as submitted,
+                        ROUND(COUNT(DISTINCT t.employee_id) * 100.0 / COUNT(DISTINCT e.id), 2) as rate
+                    FROM departments d
+                    JOIN employees e ON d.id = e.DepartmentID
+                    LEFT JOIN timesheets t ON e.id = t.employee_id 
+                        AND t.date = ? 
+                        AND t.status IN ('submitted', 'verified')
+                    WHERE e.EmploymentStatus = 'Working'
+                    GROUP BY d.id, d.name
+                    ORDER BY rate DESC
+                `, [today]);
 
             console.log(`\n═══════════════════════════════════════════`);
             console.log(`  📊 EOD COMPLIANCE REPORT - ${today}`);

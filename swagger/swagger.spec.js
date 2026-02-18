@@ -1,3 +1,4 @@
+    
 /**
  * SWAGGER API DOCUMENTATION
  * Complete OpenAPI 3.0 specification for HRMS API
@@ -173,6 +174,110 @@ const swaggerSpec = {
         responses: {
           200: { description: "Server is healthy" },
         },
+      },
+    },
+
+    // ============ PAYROLL ADMIN/CONFIG ============
+    "/api/payroll/v2/runs/preview": {
+      post: {
+        summary: "Preview Payroll Run",
+        tags: ["Payroll"],
+        description: "Preview payroll calculation for a run (no commit).",
+        requestBody: { required: false },
+        responses: { 200: { description: "Preview calculation result" } },
+      },
+    },
+    "/api/payroll/v2/runs/{runId}/lock": {
+      post: {
+        summary: "Lock Payroll Run",
+        tags: ["Payroll"],
+        parameters: [ { name: "runId", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Payroll run locked" } },
+      },
+    },
+    "/api/payroll/v2/cycles/{cycleId}/lock": {
+      put: {
+        summary: "Lock Payroll Cycle",
+        tags: ["Payroll"],
+        parameters: [ { name: "cycleId", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Payroll cycle locked" } },
+      },
+    },
+    "/api/payroll/v2/employees/{employeeId}/tax-profile": {
+      get: {
+        summary: "Get Employee Tax Profile",
+        tags: ["Payroll"],
+        parameters: [ { name: "employeeId", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Tax profile details" } },
+      },
+      put: {
+        summary: "Update Employee Tax Profile",
+        tags: ["Payroll"],
+        parameters: [ { name: "employeeId", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
+        responses: { 200: { description: "Tax profile updated" } },
+      },
+    },
+    "/api/payroll/v2/employees/{employeeId}/bank-account": {
+      get: {
+        summary: "Get Employee Bank Account",
+        tags: ["Payroll"],
+        parameters: [ { name: "employeeId", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Bank account details" } },
+      },
+      put: {
+        summary: "Update Employee Bank Account",
+        tags: ["Payroll"],
+        parameters: [ { name: "employeeId", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
+        responses: { 200: { description: "Bank account updated" } },
+      },
+    },
+    "/api/payroll/v2/payouts/initiate": {
+      post: {
+        summary: "Initiate Payroll Payout",
+        tags: ["Payroll"],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { runId: { type: "integer" } }, required: ["runId"] } } } },
+        responses: { 200: { description: "Payout initiated" } },
+      },
+    },
+    "/api/payroll/v2/payouts/{runId}": {
+      get: {
+        summary: "Get Payroll Payout by Run",
+        tags: ["Payroll"],
+        parameters: [ { name: "runId", in: "path", required: true, schema: { type: "integer" } } ],
+        responses: { 200: { description: "Payout details" } },
+      },
+    },
+    "/api/payroll/v2/payouts/{payoutId}/status": {
+      put: {
+        summary: "Update Payroll Payout Status",
+        tags: ["Payroll"],
+        parameters: [ { name: "payoutId", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { status: { type: "string" } }, required: ["status"] } } } },
+        responses: { 200: { description: "Payout status updated" } },
+      },
+    },
+    "/api/payroll/defaults": {
+      get: {
+        summary: "Get Payroll Defaults",
+        tags: ["Payroll Master"],
+        responses: { 200: { description: "Payroll defaults" } },
+      },
+      post: {
+        summary: "Create Payroll Defaults",
+        tags: ["Payroll Master"],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
+        responses: { 200: { description: "Payroll defaults created" } },
+      },
+    },
+    "/api/payroll/defaults/{id}": {
+      put: {
+        summary: "Update Payroll Defaults",
+        tags: ["Payroll Master"],
+        parameters: [ { name: "id", in: "path", required: true, schema: { type: "integer" } } ],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
+        responses: { 200: { description: "Payroll defaults updated" } },
       },
     },
 
@@ -7199,7 +7304,15 @@ try {
       const ops = swaggerSpec.paths[p];
       Object.keys(ops).forEach((m) => {
         ops[m].tags = ops[m].tags || [];
-        if (!ops[m].tags.includes('Payroll')) ops[m].tags.unshift('Payroll');
+        // Only add Payroll tag to process endpoints, not Payroll Master endpoints
+        if (
+          !ops[m].tags.includes('Payroll') &&
+          !ops[m].tags.includes('Payroll Master') &&
+          !ops[m].tags.includes('📊 Reports') &&
+          !ops[m].tags.includes('📤 Upload')
+        ) {
+          ops[m].tags.unshift('Payroll');
+        }
       });
     }
   });
