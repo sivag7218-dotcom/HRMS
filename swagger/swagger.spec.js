@@ -295,7 +295,18 @@ const swaggerSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, value: { type: "number" } }, required: ["name", "type", "value"] },
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  type: { type: "string", enum: ["Earning", "Deduction", "Reimbursement"] },
+                  is_statutory: { type: "boolean" },
+                  is_taxable: { type: "boolean" },
+                  calculation_type: { type: "string", enum: ["Flat", "Percentage", "Formula"] },
+                  created_by: { type: "integer" }
+                },
+                required: ["name", "type", "is_statutory", "is_taxable", "calculation_type", "created_by"]
+              },
             },
           },
         },
@@ -317,7 +328,17 @@ const swaggerSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, value: { type: "number" } } },
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  type: { type: "string", enum: ["Earning", "Deduction", "Reimbursement"] },
+                  is_statutory: { type: "boolean" },
+                  is_taxable: { type: "boolean" },
+                  calculation_type: { type: "string", enum: ["Flat", "Percentage", "Formula"] }
+                },
+                required: ["name", "type", "is_statutory", "is_taxable", "calculation_type"]
+              },
             },
           },
         },
@@ -343,7 +364,15 @@ const swaggerSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object", properties: { name: { type: "string" }, components: { type: "array", items: { type: "integer" } } }, required: ["name", "components"] },
+              schema: {
+                type: "object",
+                properties: {
+                  template_name: { type: "string" },
+                  description: { type: "string" },
+                  created_by: { type: "integer" }
+                },
+                required: ["template_name", "created_by"]
+              },
             },
           },
         },
@@ -365,7 +394,14 @@ const swaggerSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object", properties: { name: { type: "string" }, components: { type: "array", items: { type: "integer" } } } },
+              schema: {
+                type: "object",
+                properties: {
+                  template_name: { type: "string" },
+                  description: { type: "string" }
+                },
+                required: ["template_name"]
+              },
             },
           },
         },
@@ -391,7 +427,15 @@ const swaggerSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object", properties: { employee_id: { type: "integer" }, template_id: { type: "integer" }, effective_date: { type: "string", format: "date" } }, required: ["employee_id", "template_id", "effective_date"] },
+              schema: {
+                type: "object",
+                properties: {
+                  employee_id: { type: "integer" },
+                  component_name: { type: "string" },
+                  component_value: { type: "number" }
+                },
+                required: ["employee_id", "component_name", "component_value"]
+              },
             },
           },
         },
@@ -413,7 +457,14 @@ const swaggerSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object", properties: { template_id: { type: "integer" }, effective_date: { type: "string", format: "date" } } },
+              schema: {
+                type: "object",
+                properties: {
+                  component_name: { type: "string" },
+                  component_value: { type: "number" }
+                },
+                required: ["component_name", "component_value"]
+              },
             },
           },
         },
