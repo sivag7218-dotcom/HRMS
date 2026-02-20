@@ -1078,18 +1078,20 @@ router.post("/wfh-request", auth, async (req, res) => {
        AND (status = 'pending' OR status = 'approved')
        AND DATE(start_date) <= ? 
        AND DATE(end_date) >= ?`,
-      [emp.id, finalEndDate, finalStartDate]
+      [emp.id, finalEndDate, finalStartDate],
     );
 
     console.log("[WFH-DEBUG] Found existing WFH requests:", existingWFH.length);
     if (existingWFH.length > 0) {
-      existingWFH.forEach(req => {
-        console.log(`[WFH-DEBUG] Conflicting request - ID: ${req.id}, Start: ${req.start_date}, End: ${req.end_date}, Status: ${req.status}`);
+      existingWFH.forEach((req) => {
+        console.log(
+          `[WFH-DEBUG] Conflicting request - ID: ${req.id}, Start: ${req.start_date}, End: ${req.end_date}, Status: ${req.status}`,
+        );
       });
-      
+
       await c.rollback();
       c.end();
-      
+
       const conflictingReq = existingWFH[0];
       return res.status(400).json({
         error: `You already have a ${conflictingReq.status} WFH request from ${conflictingReq.start_date} to ${conflictingReq.end_date}. You cannot apply for WFH on overlapping dates.`,
@@ -1097,8 +1099,8 @@ router.post("/wfh-request", auth, async (req, res) => {
           id: conflictingReq.id,
           start_date: conflictingReq.start_date,
           end_date: conflictingReq.end_date,
-          status: conflictingReq.status
-        }
+          status: conflictingReq.status,
+        },
       });
     }
 
