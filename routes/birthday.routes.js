@@ -16,7 +16,7 @@ router.get("/", auth, async (req, res) => {
     const period = req.query.period || 'today';
     const c = await db();
     
-    let query = "SELECT id, FirstName, LastName, DateOfBirth, WorkEmail FROM employees WHERE 1=1";
+    let query = "SELECT id, FirstName, LastName, DateOfBirth, WorkEmail, profile_image FROM employees WHERE 1=1";
     
     if (period === 'today') {
         query += " AND DAY(DateOfBirth) = DAY(CURDATE()) AND MONTH(DateOfBirth) = MONTH(CURDATE())";
