@@ -930,9 +930,24 @@ router.get("/wfh-requests/pending", auth, async (req, res) => {
              ORDER BY l.applied_at ASC`,
     );
     c.end();
+
+    console.log("[WFH-GET] Fetched pending WFH requests count:", r.length);
+    if (r && r.length > 0) {
+      console.log("[WFH-GET] First request:", {
+        id: r[0].id,
+        start_date: r[0].start_date,
+        end_date: r[0].end_date,
+        total_days: r[0].total_days,
+        leave_type: r[0].leave_type,
+        FirstName: r[0].FirstName,
+        LastName: r[0].LastName,
+      });
+      console.log("[WFH-GET] All record data:", r[0]);
+    }
+
     res.json(r);
   } catch (error) {
-    console.error("Error fetching pending WFH requests:", error);
+    console.error("[WFH-GET] Error fetching pending WFH requests:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -989,17 +1004,65 @@ router.get("/wfh-check-today", auth, async (req, res) => {
 // Request WFH/Remote work
 router.post("/wfh-request", auth, async (req, res) => {
   try {
+    console.log(
+      "[WFH-DEBUG] Received WFH request:",
+      JSON.stringify(req.body, null, 2),
+    );
+
     const emp = await findEmployeeByUserId(req.user.id);
     if (!emp) return res.status(404).json({ error: "Employee not found" });
 
-    const { date, work_mode, reason } = req.body;
+    const { start_date, end_date, total_days, work_mode, reason, date } =
+      req.body;
 
-    if (!date || !work_mode) {
-      return res.status(400).json({ error: "Date and work mode are required" });
+    console.log(
+      "[WFH-DEBUG] Extracted fields - start_date:",
+      start_date,
+      "end_date:",
+      end_date,
+      "total_days:",
+      total_days,
+      "work_mode:",
+      work_mode,
+    );
+
+    // Support both single date and date range
+    const finalStartDate = start_date || date;
+    const finalEndDate = end_date || date;
+    let finalTotalDays = total_days || 1;
+
+    console.log(
+      "[WFH-DEBUG] Final values - start:",
+      finalStartDate,
+      "end:",
+      finalEndDate,
+      "days:",
+      finalTotalDays,
+    );
+
+    if (!finalStartDate || !finalEndDate || !work_mode) {
+      console.log("[WFH-DEBUG] Validation failed - Required fields missing");
+      return res
+        .status(400)
+        .json({ error: "Start date, end date and work mode are required" });
     }
 
     if (!["WFH", "Remote"].includes(work_mode)) {
+      console.log(
+        "[WFH-DEBUG] Validation failed - Invalid work mode:",
+        work_mode,
+      );
       return res.status(400).json({ error: "Work mode must be WFH or Remote" });
+    }
+
+    // Calculate total_days if not provided or is 0 or less
+    if (!total_days || total_days <= 0 || total_days === null) {
+      const start = new Date(finalStartDate);
+      const end = new Date(finalEndDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      finalTotalDays = diffDays;
+      console.log("[WFH-DEBUG] Calculated total_days:", finalTotalDays);
     }
 
     const c = await db();
@@ -1007,9 +1070,27 @@ router.post("/wfh-request", auth, async (req, res) => {
       `INSERT INTO leaves 
              (employee_id, leave_type, start_date, end_date, total_days, reason, status, applied_at)
              VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
-      [emp.id, work_mode, date, date, 1, reason || `${work_mode} request`],
+      [
+        emp.id,
+        work_mode,
+        finalStartDate,
+        finalEndDate,
+        finalTotalDays,
+        reason || `${work_mode} request`,
+      ],
     );
     c.end();
+
+    console.log(
+      "[WFH-DEBUG] Successfully inserted record with ID:",
+      result.insertId,
+      "start:",
+      finalStartDate,
+      "end:",
+      finalEndDate,
+      "days:",
+      finalTotalDays,
+    );
 
     res.json({
       success: true,
@@ -1017,7 +1098,7 @@ router.post("/wfh-request", auth, async (req, res) => {
       message: `${work_mode} request submitted successfully`,
     });
   } catch (error) {
-    console.error("Error submitting WFH request:", error);
+    console.error("[WFH-DEBUG] Error submitting WFH request:", error);
     res.status(500).json({ error: error.message });
   }
 });
