@@ -1066,6 +1066,42 @@ router.post("/wfh-request", auth, async (req, res) => {
     }
 
     const c = await db();
+    await c.beginTransaction();
+
+    // CHECK FOR DUPLICATE/OVERLAPPING WFH REQUESTS (pending or approved only)
+    console.log("[WFH-DEBUG] Checking for overlapping WFH requests...");
+    const [existingWFH] = await c.query(
+      `SELECT id, start_date, end_date, status, leave_type 
+       FROM leaves 
+       WHERE employee_id = ? 
+       AND leave_type = 'WFH'
+       AND (status = 'pending' OR status = 'approved')
+       AND DATE(start_date) <= ? 
+       AND DATE(end_date) >= ?`,
+      [emp.id, finalEndDate, finalStartDate]
+    );
+
+    console.log("[WFH-DEBUG] Found existing WFH requests:", existingWFH.length);
+    if (existingWFH.length > 0) {
+      existingWFH.forEach(req => {
+        console.log(`[WFH-DEBUG] Conflicting request - ID: ${req.id}, Start: ${req.start_date}, End: ${req.end_date}, Status: ${req.status}`);
+      });
+      
+      await c.rollback();
+      c.end();
+      
+      const conflictingReq = existingWFH[0];
+      return res.status(400).json({
+        error: `You already have a ${conflictingReq.status} WFH request from ${conflictingReq.start_date} to ${conflictingReq.end_date}. You cannot apply for WFH on overlapping dates.`,
+        conflictingRequest: {
+          id: conflictingReq.id,
+          start_date: conflictingReq.start_date,
+          end_date: conflictingReq.end_date,
+          status: conflictingReq.status
+        }
+      });
+    }
+
     const [result] = await c.query(
       `INSERT INTO leaves 
              (employee_id, leave_type, start_date, end_date, total_days, reason, status, applied_at)
@@ -1079,6 +1115,8 @@ router.post("/wfh-request", auth, async (req, res) => {
         reason || `${work_mode} request`,
       ],
     );
+
+    await c.commit();
     c.end();
 
     console.log(
