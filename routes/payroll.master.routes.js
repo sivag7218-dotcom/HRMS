@@ -3,6 +3,10 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/payroll.master.controller');
 
+// Default Master Data Setup
+router.post('/setup/defaults', ctrl.populateDefaults);
+router.delete('/setup/clear', ctrl.clearMasterData);
+
 // Salary Components
 router.get('/components', ctrl.listComponents);
 router.post('/components', ctrl.createComponent);

@@ -1,0 +1,462 @@
+{
+  "info": {
+    "name": "HRMS Payroll Module - API Tests",
+    "description": "Comprehensive API test collection for HRMS Payroll Module",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "employee_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "structure_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('token', jsonData.token);",
+                  "    console.log('Token saved:', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Salary Structures",
+      "item": [
+        {
+          "name": "List All Structures",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/structures",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "structures"]
+            }
+          }
+        },
+        {
+          "name": "List Structures for Employee",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/structures?employee_id={{employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "structures"],
+              "query": [
+                {
+                  "key": "employee_id",
+                  "value": "{{employee_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Structure Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/structures/{{structure_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "structures", "{{structure_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create New Structure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": 4,\n  \"structure_name\": \"Test Package 2026\",\n  \"ctc_amount\": 800000.00,\n  \"effective_from\": \"2026-03-01\",\n  \"is_active\": true,\n  \"notes\": \"Test salary structure\",\n  \"components\": [\n    {\n      \"code\": \"BASIC\",\n      \"name\": \"Basic Salary\",\n      \"component_type\": \"EARNING\",\n      \"calculation_type\": \"PERCENTAGE\",\n      \"value\": 40.00,\n      \"taxable\": true,\n      \"prorated\": true,\n      \"sequence\": 10\n    },\n    {\n      \"code\": \"HRA\",\n      \"name\": \"House Rent Allowance\",\n      \"component_type\": \"EARNING\",\n      \"calculation_type\": \"PERCENTAGE\",\n      \"value\": 20.00,\n      \"percentage_of_code\": \"BASIC\",\n      \"taxable\": true,\n      \"prorated\": true,\n      \"sequence\": 20\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/structures",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "structures"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Salary Components",
+      "item": [
+        {
+          "name": "List All Components",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/components",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "components"]
+            }
+          }
+        },
+        {
+          "name": "List Components for Structure",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/components?structure_id={{structure_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "components"],
+              "query": [
+                {
+                  "key": "structure_id",
+                  "value": "{{structure_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Component",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"structure_id\": 1,\n  \"code\": \"BONUS\",\n  \"name\": \"Annual Bonus\",\n  \"component_type\": \"EARNING\",\n  \"calculation_type\": \"PERCENTAGE\",\n  \"value\": 10.00,\n  \"taxable\": true,\n  \"prorated\": false,\n  \"sequence\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payroll-master/components",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll-master", "components"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Payroll Processing",
+      "item": [
+        {
+          "name": "Run Payroll for February 2026",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": 2026,\n  \"month\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/run",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "run"]
+            }
+          }
+        },
+        {
+          "name": "Get Monthly Run Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/run?month=2026-02",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "run"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2026-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Payslips",
+      "item": [
+        {
+          "name": "List Payslips for Employee",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/payslips/{{employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "payslips", "{{employee_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Specific Payslip",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/payslips/{{employee_id}}/2026/2",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "payslips", "{{employee_id}}", "2026", "2"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Employee Payroll Data",
+      "item": [
+        {
+          "name": "Get Salary Structure",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/structure/{{employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "structure", "{{employee_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Attendance Impact",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/attendance-impact/{{employee_id}}?year=2026&month=2",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "attendance-impact", "{{employee_id}}"],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026"
+                },
+                {
+                  "key": "month",
+                  "value": "2"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Employee Payroll Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/run/{{employee_id}}?month=2026-02",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "run", "{{employee_id}}"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2026-02"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Earnings Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/earnings/{{employee_id}}?month=2026-02",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "earnings", "{{employee_id}}"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2026-02"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Deductions Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/deductions/{{employee_id}}?month=2026-02",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "deductions", "{{employee_id}}"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2026-02"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Tax Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payroll/v2/tax-summary/{{employee_id}}?year=2026",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payroll", "v2", "tax-summary", "{{employee_id}}"],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

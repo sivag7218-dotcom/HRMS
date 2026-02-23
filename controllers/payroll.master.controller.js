@@ -29,3 +29,7 @@ exports.listComposition = (req, res) => payrollMasterService.listComposition(req
 exports.addComposition = (req, res) => payrollMasterService.addComposition(req, res);
 exports.updateComposition = (req, res) => payrollMasterService.updateComposition(req, res);
 exports.deleteComposition = (req, res) => payrollMasterService.deleteComposition(req, res);
+
+// Default Master Data
+exports.populateDefaults = (req, res) => payrollMasterService.populateDefaults(req, res);
+exports.clearMasterData = (req, res) => payrollMasterService.clearMasterData(req, res);

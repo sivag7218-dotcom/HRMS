@@ -81,7 +81,7 @@ async function runPayroll(year, month, runBy = null) {
 
       // Find active salary structure for the period
       const [structRows] = await conn.query(
-        `SELECT * FROM employee_salary_structures WHERE employee_id = ? AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?) ORDER BY version DESC LIMIT 1`,
+        `SELECT * FROM salary_structures WHERE employee_id = ? AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?) ORDER BY version DESC LIMIT 1`,
         [employeeId, sd, ed]
       );
       if (structRows.length === 0) {
@@ -92,7 +92,7 @@ async function runPayroll(year, month, runBy = null) {
 
       // Load components
       const [components] = await conn.query(
-        'SELECT * FROM employee_salary_components WHERE structure_id = ? ORDER BY sequence ASC',
+        'SELECT * FROM salary_components WHERE structure_id = ? ORDER BY sequence ASC',
         [structure.id]
       );
 
@@ -279,7 +279,7 @@ async function getPayslipDetail(employeeId, year, month) {
 async function getSalaryStructureForEmployee(employeeId) {
   const c = await db();
   const [rows] = await c.query(
-    `SELECT * FROM employee_salary_structures WHERE employee_id = ? ORDER BY effective_from DESC, version DESC LIMIT 1`,
+    `SELECT * FROM salary_structures WHERE employee_id = ? ORDER BY effective_from DESC, version DESC LIMIT 1`,
     [employeeId]
   );
   if (rows.length === 0) {
@@ -287,7 +287,7 @@ async function getSalaryStructureForEmployee(employeeId) {
     return null;
   }
   const structure = rows[0];
-  const [components] = await c.query('SELECT * FROM employee_salary_components WHERE structure_id = ? ORDER BY sequence ASC', [structure.id]);
+  const [components] = await c.query('SELECT * FROM salary_components WHERE structure_id = ? ORDER BY sequence ASC', [structure.id]);
   c.end();
   return { structure, components };
 }

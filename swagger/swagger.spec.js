@@ -5471,6 +5471,70 @@ Skips employees who already have user accounts.
     },
 
     // ============ PAYROLL MASTER DATA ============
+    "/api/payroll-master/setup/defaults": {
+      post: {
+        summary: "🆕 Populate Default Payroll Templates",
+        description: "Auto-populate payroll master data with default salary structure templates (Standard, Senior, Manager packages). Creates ready-to-use templates with pre-configured components.",
+        tags: ["Payroll Master"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Default templates created successfully",
+            content: {
+              "application/json": {
+                example: {
+                  success: true,
+                  templates: [
+                    { id: 1, name: "Standard Employee Package", components: 6 },
+                    { id: 2, name: "Senior Employee Package", components: 7 },
+                    { id: 3, name: "Manager Package", components: 8 }
+                  ],
+                  components_created: 21,
+                  message: "Successfully created 3 default salary structure templates with 21 component definitions.",
+                  note: "These are templates. Use them to create actual salary structures for employees.",
+                  usage: "POST /api/payroll-master/structures with template reference to apply to employees"
+                }
+              }
+            }
+          },
+          400: {
+            description: "Templates already exist",
+            content: {
+              "application/json": {
+                example: {
+                  error: "Default templates already exist. Clear existing templates first or use force=true parameter.",
+                  existing_count: 3
+                }
+              }
+            }
+          },
+          500: { description: "Server error" }
+        }
+      }
+    },
+    "/api/payroll-master/setup/clear": {
+      delete: {
+        summary: "🗑️ Clear All Master Data",
+        description: "Delete all salary structure templates and compositions. Use with caution - this is for testing/reset purposes only.",
+        tags: ["Payroll Master"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Master data cleared",
+            content: {
+              "application/json": {
+                example: {
+                  success: true,
+                  message: "All master data cleared successfully",
+                  templates_deleted: 3
+                }
+              }
+            }
+          },
+          500: { description: "Server error" }
+        }
+      }
+    },
     "/api/payroll/components": {
       get: {
         summary: "List Salary Components",

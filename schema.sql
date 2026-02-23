@@ -889,7 +889,7 @@ CREATE TABLE IF NOT EXISTS salary_components (
   updated_at DATETIME DEFAULT NULL,
   KEY idx_component_structure (structure_id),
   UNIQUE KEY ux_structure_code (structure_id, code),
-  CONSTRAINT fk_component_structure FOREIGN KEY (structure_id) REFERENCES employee_salary_structures(id) ON DELETE CASCADE
+  CONSTRAINT fk_component_structure FOREIGN KEY (structure_id) REFERENCES salary_structures(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2) Payroll Cycles / Calendar
@@ -1550,4 +1550,66 @@ ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'employee';
 
 -- ============================================
 -- End of Schema
+
+-- Statutory Configuration Master
+-- Payroll Adjustments Table
+-- Payroll Audit Trail Table
+
+-- Integration Logs Table
+CREATE TABLE IF NOT EXISTS integration_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  integration_type VARCHAR(64) NOT NULL, -- e.g., 'BANK', 'ACCOUNTING', 'TAX'
+  reference_id VARCHAR(128),
+  status ENUM('SUCCESS','FAILED','PENDING') DEFAULT 'PENDING',
+  request_payload JSON,
+  response_payload JSON,
+  attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  notes TEXT
+);
+
+-- Payroll Calendar Table
+CREATE TABLE IF NOT EXISTS payroll_calendar (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  payroll_month VARCHAR(20) NOT NULL,
+  cutoff_date DATE NOT NULL,
+  processing_date DATE NOT NULL,
+  payout_date DATE DEFAULT NULL,
+  status ENUM('PLANNED','PROCESSING','COMPLETED') DEFAULT 'PLANNED',
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY ux_payroll_month (payroll_month)
+);
+CREATE TABLE IF NOT EXISTS payroll_audit_trail (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  action VARCHAR(64) NOT NULL, -- e.g., 'RUN', 'LOCK', 'UNLOCK', 'APPROVE', 'ROLLBACK'
+  performed_by INT NOT NULL,
+  payroll_run_id INT DEFAULT NULL,
+  details TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (performed_by) REFERENCES users(id),
+  FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id)
+);
+CREATE TABLE IF NOT EXISTS payroll_adjustments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  employee_id INT NOT NULL,
+  payroll_month VARCHAR(20) NOT NULL,
+  adjustment_type ENUM('BONUS','ARREAR','DEDUCTION','CORRECTION') NOT NULL,
+  amount DECIMAL(15,2) NOT NULL,
+  reason TEXT,
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS statutory_configs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(32) NOT NULL UNIQUE, -- e.g., 'PF', 'ESI', 'PT', 'TDS'
+  name VARCHAR(128) NOT NULL,
+  value DECIMAL(15,4) NOT NULL,
+  value_type ENUM('PERCENTAGE','AMOUNT','CEILING') NOT NULL,
+  effective_from DATE NOT NULL,
+  effective_to DATE DEFAULT NULL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 -- ============================================
