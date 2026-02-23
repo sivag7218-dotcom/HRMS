@@ -70,6 +70,32 @@ router.get("/my-team/list", auth, async (req, res) => {
 
     const c = await db();
 
+    // NEW: If user is HR or Admin, return ALL working employees
+    if (req.user.role === 'hr' || req.user.role === 'admin') {
+      console.log(`User role is ${req.user.role}, fetching all working employees`);
+      const [allEmployees] = await c.query(
+        `SELECT 
+                e.*,
+                d.name as department_name,
+                des.name as designation_name,
+                l.name as location_name
+             FROM employees e
+             LEFT JOIN departments d ON e.DepartmentId = d.id
+             LEFT JOIN designations des ON e.DesignationId = des.id
+             LEFT JOIN locations l ON e.LocationId = l.id
+             WHERE e.EmploymentStatus = 'Working'
+             ORDER BY e.FirstName, e.LastName`
+      );
+
+      console.log("Total employees returned for HR/Admin:", allEmployees.length);
+      c.end();
+      return res.json({
+        type: "all_employees",
+        team: allEmployees,
+        message: "All Employees (HR/Admin View)",
+      });
+    }
+
     // Check if user is a manager (has reporting team members) - only working employees
     console.log("Checking reporting team for employee ID:", emp.id);
     const [reportingTeam] = await c.query(
