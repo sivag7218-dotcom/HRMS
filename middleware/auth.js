@@ -13,26 +13,31 @@ const auth = (req, res, next) => {
 };
 
 const admin = (req, res, next) => {
-    if (req.user.role !== "admin")
+    const role = req.user.role ? req.user.role.toLowerCase() : '';
+    if (role !== "admin")
         return res.status(403).json({ error: "Admin only" });
     next();
 };
 
 const roleAuth = (allowedRoles) => (req, res, next) => {
-    if (!allowedRoles.includes(req.user.role)) {
+    const role = req.user.role ? req.user.role.toLowerCase() : '';
+    const normalizedRoles = allowedRoles.map(r => r.toLowerCase());
+    if (!normalizedRoles.includes(role)) {
         return res.status(403).json({ error: `Access denied. Required roles: ${allowedRoles.join(', ')}` });
     }
     next();
 };
 
 const hr = (req, res, next) => {
-    if (!['admin', 'hr'].includes(req.user.role))
+    const role = req.user.role ? req.user.role.toLowerCase() : '';
+    if (!['admin', 'hr'].includes(role))
         return res.status(403).json({ error: "HR/Admin only" });
     next();
 };
 
 const manager = (req, res, next) => {
-    if (!['admin', 'hr', 'manager'].includes(req.user.role))
+    const role = req.user.role ? req.user.role.toLowerCase() : '';
+    if (!['admin', 'hr', 'manager'].includes(role))
         return res.status(403).json({ error: "Manager/HR/Admin only" });
     next();
 };
