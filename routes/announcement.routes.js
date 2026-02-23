@@ -20,14 +20,21 @@ router.get("/", auth, async (req, res) => {
 
 // Create announcement (HR/Admin only)
 router.post("/", auth, hr, async (req, res) => {
-    const { title, body, priority } = req.body;
+    const { title, body, priority, starts_at, ends_at } = req.body;
     if (!title || title.trim() === "" || !body || body.trim() === "") {
-        return res.status(400).json({ error: "Title and message are required" });
+        return res.status(400).json({ error: "Title and Body are required" });
+    }
+    // Convert ISO 8601 to MySQL TIMESTAMP (YYYY-MM-DD HH:MM:SS)
+    function toMySQLDatetime(val) {
+        if (!val) return null;
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().slice(0, 19).replace('T', ' ');
     }
     const c = await db();
     const [result] = await c.query(
-        "INSERT INTO announcements (title, body, created_by, created_at) VALUES (?, ?, ?, NOW())",
-        [title, body, req.user.id]
+        `INSERT INTO announcements (title, body, starts_at, ends_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, NOW())`,
+        [title, body, toMySQLDatetime(starts_at), toMySQLDatetime(ends_at), req.user.id]
     );
     c.end();
     res.json({ id: result.insertId, success: true });
@@ -35,8 +42,21 @@ router.post("/", auth, hr, async (req, res) => {
 
 // Update announcement (HR/Admin only)
 router.put("/:id", auth, hr, async (req, res) => {
+    const { title, body, priority, starts_at, ends_at } = req.body;
+    function toMySQLDatetime(val) {
+        if (!val) return null;
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().slice(0, 19).replace('T', ' ');
+    }
+    const updateFields = {};
+    if (title !== undefined) updateFields.title = title;
+    if (body !== undefined) updateFields.body = body;
+    if (priority !== undefined) updateFields.priority = priority;
+    if (starts_at !== undefined) updateFields.starts_at = toMySQLDatetime(starts_at);
+    if (ends_at !== undefined) updateFields.ends_at = toMySQLDatetime(ends_at);
     const c = await db();
-    await c.query("UPDATE announcements SET ? WHERE id = ?", [req.body, req.params.id]);
+    await c.query("UPDATE announcements SET ? WHERE id = ?", [updateFields, req.params.id]);
     c.end();
     res.json({ success: true });
 });
