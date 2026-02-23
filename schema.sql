@@ -851,13 +851,6 @@ CREATE TABLE IF NOT EXISTS leaves (
 -- Payroll Management
 -- ============================================
 
--- ============================================
--- Payroll module (appended)
--- ============================================
--- Payroll module SQL DDL (MySQL)
--- Generated: 2026-02-13
--- Design principles: revision-safe salary structures, frozen attendance snapshots, auditable payroll runs
-
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- 1) Employee Salary Structures (revision-safe)

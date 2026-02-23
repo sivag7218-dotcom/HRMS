@@ -75,23 +75,6 @@ console.log('🌐 Allowed CORS origins:', allowedOrigins);
 // Middleware
 app.use(bodyParser.json());
 
-// app.use(cors({
-//   origin: function (origin, callback) {
-//     // Allow requests with no origin (mobile apps, Postman, curl, same-origin)
-//     if (!origin) return callback(null, true);
-
-//     if (allowedOrigins.includes(origin)) {
-//       return callback(null, true);
-//     }
-
-//     console.warn('⚠️ CORS blocked:', origin);
-//     return callback(new Error('CORS policy: Origin not allowed'));
-//   },
-//   credentials: true,
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-//   exposedHeaders: ['Content-Range', 'X-Content-Range']
-// }));
 app.use(
   cors({
     origin: true,

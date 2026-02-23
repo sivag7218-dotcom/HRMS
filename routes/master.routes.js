@@ -34,8 +34,18 @@ const createMasterRoutes = (route, table, col) => {
   });
 
   router.post(`/${route}`, auth, hr, async (req, res) => {
+    const value = req.body[col];
+    if (!value || value.trim() === "") {
+      return res.status(400).json({ error: `${col} is required` });
+    }
     const c = await db();
-    await c.query(`INSERT INTO ${table}(${col}) VALUES(?)`, [req.body[col]]);
+    // Check for duplicate
+    const [existing] = await c.query(`SELECT id FROM ${table} WHERE ${col} = ?`, [value]);
+    if (existing.length > 0) {
+      c.end();
+      return res.status(409).json({ error: `${route} with this ${col} already exists` });
+    }
+    await c.query(`INSERT INTO ${table}(${col}) VALUES(?)`, [value]);
     c.end();
     res.json({ message: `${route} created` });
   });
@@ -496,9 +506,15 @@ updateMasterRoutes.forEach(({ route, table, col }) => {
     try {
       const c = await db();
       const value = req.body[col];
-      if (!value) {
+      if (!value || value.trim() === "") {
         c.end();
         return res.status(400).json({ error: `${col} is required` });
+      }
+      // Check for duplicate (excluding current id)
+      const [existing] = await c.query(`SELECT id FROM ${table} WHERE ${col} = ? AND id != ?`, [value, req.params.id]);
+      if (existing.length > 0) {
+        c.end();
+        return res.status(409).json({ error: `${route} with this ${col} already exists` });
       }
       const [result] = await c.query(
         `UPDATE ${table} SET ${col} = ? WHERE id = ?`,
