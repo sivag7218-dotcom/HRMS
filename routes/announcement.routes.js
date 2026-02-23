@@ -20,14 +20,14 @@ router.get("/", auth, async (req, res) => {
 
 // Create announcement (HR/Admin only)
 router.post("/", auth, hr, async (req, res) => {
-    const { title, message, priority } = req.body;
-    if (!title || title.trim() === "" || !message || message.trim() === "") {
+    const { title, body, priority } = req.body;
+    if (!title || title.trim() === "" || !body || body.trim() === "") {
         return res.status(400).json({ error: "Title and message are required" });
     }
     const c = await db();
     const [result] = await c.query(
         "INSERT INTO announcements (title, body, created_by, created_at) VALUES (?, ?, ?, NOW())",
-        [title, message, req.user.id]
+        [title, body, req.user.id]
     );
     c.end();
     res.json({ id: result.insertId, success: true });
