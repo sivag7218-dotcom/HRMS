@@ -333,7 +333,10 @@ exports.populateDefaults = async (req, res) => {
       const createdBy = (req.user && req.user.id) || 1;
       const results = {
         templates: [],
+        master_structures: [],
+        employee_structures: [],
         components_created: 0,
+        compositions_created: 0,
         message: ''
       };
 
@@ -342,40 +345,43 @@ exports.populateDefaults = async (req, res) => {
         {
           name: 'Standard Employee Package',
           description: 'Standard salary structure for regular employees with basic components',
+          ctc: 500000,
           components: [
-            { code: 'BASIC', name: 'Basic Salary', type: 'EARNING', calc: 'PERCENTAGE', value: 40.00 },
-            { code: 'HRA', name: 'House Rent Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 20.00, pct_of: 'BASIC' },
-            { code: 'CONVEYANCE', name: 'Conveyance Allowance', type: 'EARNING', calc: 'FIXED', value: 1600.00 },
-            { code: 'SPECIAL', name: 'Special Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 30.00 },
-            { code: 'MEDICAL', name: 'Medical Allowance', type: 'EARNING', calc: 'FIXED', value: 1250.00 },
-            { code: 'PF_DEDUCT', name: 'PF Employee Contribution', type: 'DEDUCTION', calc: 'PERCENTAGE', value: 12.00, pct_of: 'BASIC' }
+            { code: 'BASIC', name: 'Basic Salary', type: 'EARNING', calc: 'PERCENTAGE', value: 40.00, seq: 10 },
+            { code: 'HRA', name: 'House Rent Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 20.00, pct_of: 'BASIC', seq: 20 },
+            { code: 'CONVEYANCE', name: 'Conveyance Allowance', type: 'EARNING', calc: 'FIXED', value: 1600.00, seq: 30 },
+            { code: 'SPECIAL', name: 'Special Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 30.00, seq: 40 },
+            { code: 'MEDICAL', name: 'Medical Allowance', type: 'EARNING', calc: 'FIXED', value: 1250.00, seq: 50 },
+            { code: 'PF_DEDUCT', name: 'PF Employee Contribution', type: 'DEDUCTION', calc: 'PERCENTAGE', value: 12.00, pct_of: 'BASIC', seq: 100 }
           ]
         },
         {
           name: 'Senior Employee Package',
           description: 'Enhanced salary structure for senior employees with performance components',
+          ctc: 800000,
           components: [
-            { code: 'BASIC', name: 'Basic Salary', type: 'EARNING', calc: 'PERCENTAGE', value: 45.00 },
-            { code: 'HRA', name: 'House Rent Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 25.00, pct_of: 'BASIC' },
-            { code: 'CONVEYANCE', name: 'Conveyance Allowance', type: 'EARNING', calc: 'FIXED', value: 2400.00 },
-            { code: 'SPECIAL', name: 'Special Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 25.00 },
-            { code: 'MEDICAL', name: 'Medical Allowance', type: 'EARNING', calc: 'FIXED', value: 1500.00 },
-            { code: 'PERFORMANCE', name: 'Performance Bonus', type: 'EARNING', calc: 'PERCENTAGE', value: 5.00 },
-            { code: 'PF_DEDUCT', name: 'PF Employee Contribution', type: 'DEDUCTION', calc: 'PERCENTAGE', value: 12.00, pct_of: 'BASIC' }
+            { code: 'BASIC', name: 'Basic Salary', type: 'EARNING', calc: 'PERCENTAGE', value: 45.00, seq: 10 },
+            { code: 'HRA', name: 'House Rent Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 25.00, pct_of: 'BASIC', seq: 20 },
+            { code: 'CONVEYANCE', name: 'Conveyance Allowance', type: 'EARNING', calc: 'FIXED', value: 2400.00, seq: 30 },
+            { code: 'SPECIAL', name: 'Special Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 25.00, seq: 40 },
+            { code: 'MEDICAL', name: 'Medical Allowance', type: 'EARNING', calc: 'FIXED', value: 1500.00, seq: 50 },
+            { code: 'PERFORMANCE', name: 'Performance Bonus', type: 'EARNING', calc: 'PERCENTAGE', value: 5.00, seq: 60 },
+            { code: 'PF_DEDUCT', name: 'PF Employee Contribution', type: 'DEDUCTION', calc: 'PERCENTAGE', value: 12.00, pct_of: 'BASIC', seq: 100 }
           ]
         },
         {
           name: 'Manager Package',
           description: 'Comprehensive salary structure for managers with leadership bonuses',
+          ctc: 1200000,
           components: [
-            { code: 'BASIC', name: 'Basic Salary', type: 'EARNING', calc: 'PERCENTAGE', value: 50.00 },
-            { code: 'HRA', name: 'House Rent Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 30.00, pct_of: 'BASIC' },
-            { code: 'CONVEYANCE', name: 'Conveyance Allowance', type: 'EARNING', calc: 'FIXED', value: 3000.00 },
-            { code: 'SPECIAL', name: 'Special Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 15.00 },
-            { code: 'MEDICAL', name: 'Medical Allowance', type: 'EARNING', calc: 'FIXED', value: 2000.00 },
-            { code: 'PERFORMANCE', name: 'Performance Bonus', type: 'EARNING', calc: 'PERCENTAGE', value: 5.00 },
-            { code: 'PF_DEDUCT', name: 'PF Employee Contribution', type: 'DEDUCTION', calc: 'PERCENTAGE', value: 12.00, pct_of: 'BASIC' },
-            { code: 'PROF_TAX', name: 'Professional Tax', type: 'DEDUCTION', calc: 'FIXED', value: 200.00 }
+            { code: 'BASIC', name: 'Basic Salary', type: 'EARNING', calc: 'PERCENTAGE', value: 50.00, seq: 10 },
+            { code: 'HRA', name: 'House Rent Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 30.00, pct_of: 'BASIC', seq: 20 },
+            { code: 'CONVEYANCE', name: 'Conveyance Allowance', type: 'EARNING', calc: 'FIXED', value: 3000.00, seq: 30 },
+            { code: 'SPECIAL', name: 'Special Allowance', type: 'EARNING', calc: 'PERCENTAGE', value: 15.00, seq: 40 },
+            { code: 'MEDICAL', name: 'Medical Allowance', type: 'EARNING', calc: 'FIXED', value: 2000.00, seq: 50 },
+            { code: 'PERFORMANCE', name: 'Performance Bonus', type: 'EARNING', calc: 'PERCENTAGE', value: 5.00, seq: 60 },
+            { code: 'PF_DEDUCT', name: 'PF Employee Contribution', type: 'DEDUCTION', calc: 'PERCENTAGE', value: 12.00, pct_of: 'BASIC', seq: 100 },
+            { code: 'PROF_TAX', name: 'Professional Tax', type: 'DEDUCTION', calc: 'FIXED', value: 200.00, seq: 110 }
           ]
         }
       ];
@@ -387,14 +393,63 @@ exports.populateDefaults = async (req, res) => {
         await c.rollback();
         c.end();
         return res.status(400).json({ 
-          error: 'Default templates already exist. Clear existing templates first or use force=true parameter.',
+          error: 'Default templates already exist. Clear existing templates first.',
           existing_count: existing[0].count 
         });
       }
 
-      // Create templates and their compositions
+      // Get admin user ID for master structures (use first admin user, or create a system user concept)
+      const [adminUser] = await c.query('SELECT id FROM users WHERE role = "admin" LIMIT 1');
+      const masterUserId = adminUser.length > 0 ? adminUser[0].id : 1; // Fallback to 1
+
+      // STEP 1: Create master structures (template structures to hold component definitions)
+      // These act as master component repositories that can be referenced
       for (const template of defaultTemplates) {
-        // Insert template
+        // Get next version number for master user
+        const [versionRows] = await c.query(
+          'SELECT COALESCE(MAX(version), 0) + 1 as next_version FROM salary_structures WHERE employee_id = ?',
+          [masterUserId]
+        );
+        const masterVersion = versionRows[0].next_version;
+        
+        // Create a master structure for this template (using admin/system user)
+        const [masterStructResult] = await c.query(
+          `INSERT INTO salary_structures (employee_id, structure_name, ctc_amount, effective_from, is_active, version, notes, created_by) 
+           VALUES (?, ?, ?, CURDATE(), 0, ?, 'MASTER TEMPLATE - Do not modify. Used as component repository for template.', ?)`,
+          [masterUserId, `MASTER_${template.name}`, template.ctc, masterVersion, createdBy]
+        );
+        
+        const masterStructId = masterStructResult.insertId;
+        results.master_structures.push({
+          id: masterStructId,
+          name: template.name
+        });
+
+        // Create master components for this structure
+        const componentIds = [];
+        for (const comp of template.components) {
+          const [compResult] = await c.query(
+            `INSERT INTO salary_components (structure_id, code, name, component_type, calculation_type, value, percentage_of_code, taxable, prorated, sequence, notes) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              masterStructId,
+              comp.code,
+              comp.name,
+              comp.type,
+              comp.calc,
+              comp.value,
+              comp.pct_of || null,
+              comp.type === 'EARNING' ? 1 : 0,
+              0,
+              comp.seq,
+              'Master component definition'
+            ]
+          );
+          componentIds.push({ id: compResult.insertId, ...comp });
+          results.components_created++;
+        }
+
+        // STEP 2: Create template
         const [templateResult] = await c.query(
           'INSERT INTO salary_structure_templates (template_name, description, created_by) VALUES (?, ?, ?)',
           [template.name, template.description, createdBy]
@@ -404,37 +459,99 @@ exports.populateDefaults = async (req, res) => {
         results.templates.push({
           id: templateId,
           name: template.name,
-          components: template.components.length
+          components: template.components.length,
+          master_structure_id: masterStructId
         });
 
-        // Insert components for this template
-        // Note: Since structure_composition links to salary_components (which requires structure_id),
-        // we'll store component definitions as metadata in description or create a mapping system
-        // For now, we'll document the components in a structured way
-        
-        let componentDesc = template.description + '\n\nComponents:\n';
-        template.components.forEach((comp, idx) => {
-          componentDesc += `${idx + 1}. ${comp.code} - ${comp.name} (${comp.type}, ${comp.calc}, ${comp.value}${comp.pct_of ? ' % of ' + comp.pct_of : ''})\n`;
-          results.components_created++;
-        });
+        // STEP 3: Create template composition (link components to template)
+        for (const comp of componentIds) {
+          const formula = comp.pct_of ? `${comp.value}% of ${comp.pct_of}` : `${comp.value}`;
+          await c.query(
+            'INSERT INTO structure_composition (template_id, component_id, formula_or_value, created_by) VALUES (?, ?, ?, ?)',
+            [templateId, comp.id, formula, createdBy]
+          );
+          results.compositions_created++;
+        }
+      }
 
-        // Update template description with component details
-        await c.query(
-          'UPDATE salary_structure_templates SET description = ? WHERE template_id = ?',
-          [componentDesc, templateId]
-        );
+      // STEP 4: Get first 3-5 employees and create sample structures
+      const [employees] = await c.query('SELECT id, FullName FROM employees WHERE EmploymentStatus = "Active" LIMIT 5');
+      
+      if (employees.length > 0) {
+        for (let i = 0; i < Math.min(employees.length, 3); i++) {
+          const emp = employees[i];
+          const template = defaultTemplates[i % defaultTemplates.length]; // Rotate through templates
+          const templateData = results.templates.find(t => t.name === template.name);
+          
+          // Get next version number for this employee
+          const [empVersionRows] = await c.query(
+            'SELECT COALESCE(MAX(version), 0) + 1 as next_version FROM salary_structures WHERE employee_id = ?',
+            [emp.id]
+          );
+          const empVersion = empVersionRows[0].next_version;
+          
+          // Create employee structure
+          const [empStructResult] = await c.query(
+            `INSERT INTO salary_structures (employee_id, structure_name, ctc_amount, effective_from, is_active, version, notes, created_by) 
+             VALUES (?, ?, ?, CURDATE(), 1, ?, ?, ?)`,
+            [emp.id, `${emp.FullName} - ${template.name}`, template.ctc, empVersion, `Applied ${template.name} template`, createdBy]
+          );
+          
+          const empStructId = empStructResult.insertId;
+          
+          // Copy components from master structure to employee structure
+          for (const comp of template.components) {
+            await c.query(
+              `INSERT INTO salary_components (structure_id, code, name, component_type, calculation_type, value, percentage_of_code, taxable, prorated, sequence, notes) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                empStructId,
+                comp.code,
+                comp.name,
+                comp.type,
+                comp.calc,
+                comp.value,
+                comp.pct_of || null,
+                comp.type === 'EARNING' ? 1 : 0,
+                0,
+                comp.seq,
+                `From ${template.name} template`
+              ]
+            );
+          }
+
+          results.employee_structures.push({
+            employee_id: emp.id,
+            employee_name: emp.FullName,
+            structure_id: empStructId,
+            template: template.name,
+            ctc: template.ctc
+          });
+        }
       }
 
       await c.commit();
       c.end();
 
-      results.message = `Successfully created ${results.templates.length} default salary structure templates with ${results.components_created} component definitions.`;
+      results.message = `Successfully created complete payroll master data`;
       
       res.json({
         success: true,
-        ...results,
-        note: 'These are templates. Use them to create actual salary structures for employees.',
-        usage: 'POST /api/payroll-master/structures with template reference to apply to employees'
+        summary: {
+          templates: results.templates.length,
+          components: results.components_created,
+          compositions: results.compositions_created,
+          employee_structures: results.employee_structures.length
+        },
+        templates: results.templates,
+        employee_structures: results.employee_structures,
+        message: results.message,
+        note: 'Complete payroll setup ready. Templates, components, compositions, and sample employee structures created.',
+        next_steps: [
+          '1. Run payroll: POST /api/payroll/v2/run with year and month',
+          '2. View payslips: GET /api/payroll/v2/payslips/{employeeId}',
+          '3. Assign more employees: POST /api/payroll-master/structures'
+        ]
       });
       
     } catch (err) {
@@ -455,7 +572,21 @@ exports.clearMasterData = async (req, res) => {
     
     try {
       // Delete in correct order to avoid FK constraints
-      await c.query('DELETE FROM structure_composition');
+      // 1. Delete structure composition first
+      const [compResult] = await c.query('DELETE FROM structure_composition');
+      
+      // 2. Delete salary components (this includes both master and employee components)
+      // Delete all components linked to any salary structures (will cascade from structure deletion)
+      const [componentsResult] = await c.query('DELETE FROM salary_components');
+      
+      // 3. Delete salary structures (both master structures and employee structures created by auto-populate)
+      // Delete all structures that were created by the populate defaults
+      const [structuresResult] = await c.query(`DELETE FROM salary_structures WHERE 
+        structure_name LIKE 'MASTER_%' OR 
+        notes LIKE '%template%' OR 
+        notes LIKE '%MASTER TEMPLATE%'`);
+      
+      // 4. Delete templates
       const [templateResult] = await c.query('DELETE FROM salary_structure_templates');
       
       await c.commit();
@@ -463,8 +594,13 @@ exports.clearMasterData = async (req, res) => {
       
       res.json({
         success: true,
-        message: 'All master data cleared successfully',
-        templates_deleted: templateResult.affectedRows
+        message: 'All payroll master data cleared successfully',
+        deleted: {
+          templates: templateResult.affectedRows,
+          structures: structuresResult.affectedRows,
+          components: componentsResult.affectedRows,
+          compositions: compResult.affectedRows
+        }
       });
     } catch (err) {
       await c.rollback();
