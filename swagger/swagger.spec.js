@@ -5366,133 +5366,48 @@ Skips employees who already have user accounts.
         },
       },
     },
-    // ============ PAYROLL ADMIN/CONFIG ============
-    "/api/payroll/v2/runs/preview": {
-      post: {
-        summary: "Preview Payroll Run",
-        tags: ["Payroll Master"],
-        description: "Preview payroll calculation for a run (no commit).",
-        requestBody: { required: false },
-        responses: { 200: { description: "Preview calculation result" } },
-      },
-    },
-    "/api/payroll/v2/runs/{runId}/lock": {
-      post: {
-        summary: "Lock Payroll Run",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "runId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Payroll run locked" } },
-      },
-    },
-    "/api/payroll/v2/cycles/{cycleId}/lock": {
-      put: {
-        summary: "Lock Payroll Cycle",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "cycleId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Payroll cycle locked" } },
-      },
-    },
-    "/api/payroll/v2/employees/{employeeId}/tax-profile": {
-      get: {
-        summary: "Get Employee Tax Profile",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Tax profile details" } },
-      },
-      put: {
-        summary: "Update Employee Tax Profile",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
-        responses: { 200: { description: "Tax profile updated" } },
-      },
-    },
-    "/api/payroll/v2/employees/{employeeId}/bank-account": {
-      get: {
-        summary: "Get Employee Bank Account",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Bank account details" } },
-      },
-      put: {
-        summary: "Update Employee Bank Account",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
-        responses: { 200: { description: "Bank account updated" } },
-      },
-    },
-    "/api/payroll/v2/payouts/initiate": {
-      post: {
-        summary: "Initiate Payroll Payout",
-        tags: ["Payroll Master"],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { runId: { type: "integer" } }, required: ["runId"] } } } },
-        responses: { 200: { description: "Payout initiated" } },
-      },
-    },
-    "/api/payroll/v2/payouts/{runId}": {
-      get: {
-        summary: "Get Payroll Payout by Run",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "runId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Payout details" } },
-      },
-    },
-    "/api/payroll/v2/payouts/{payoutId}/status": {
-      put: {
-        summary: "Update Payroll Payout Status",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "payoutId", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { status: { type: "string" } }, required: ["status"] } } } },
-        responses: { 200: { description: "Payout status updated" } },
-      },
-    },
-    "/api/payroll/defaults": {
-      get: {
-        summary: "Get Payroll Defaults",
-        tags: ["Payroll Master"],
-        responses: { 200: { description: "Payroll defaults" } },
-      },
-      post: {
-        summary: "Create Payroll Defaults",
-        tags: ["Payroll Master"],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
-        responses: { 200: { description: "Payroll defaults created" } },
-      },
-    },
-    "/api/payroll/defaults/{id}": {
-      put: {
-        summary: "Update Payroll Defaults",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
-        responses: { 200: { description: "Payroll defaults updated" } },
-      },
-    },
 
-    // ============ PAYROLL MASTER DATA ============
+    // ==================== PAYROLL MODULE ====================
+    // Setup → Master Data → Processing → Reports
+    // Use auth header: Authorization: Bearer <token>
+
+    // ============ 1️⃣ PAYROLL SETUP (Quick Start) ============
     "/api/payroll-master/setup/defaults": {
       post: {
-        summary: "🆕 Populate Default Payroll Templates",
-        description: "Auto-populate payroll master data with default salary structure templates (Standard, Senior, Manager packages). Creates ready-to-use templates with pre-configured components.",
-        tags: ["Payroll Master"],
+        summary: "Auto-Populate Complete Payroll Setup",
+        description: "⚡ Complete setup: Creates templates, master components, structure compositions, AND assigns sample employees. Creates 3 templates (Standard/Senior/Manager), 21 components, composition mappings, and assigns first 3-5 active employees to templates. Everything ready to run payroll immediately!",
+        tags: ["Payroll - Setup"],
         security: [{ bearerAuth: [] }],
         responses: {
           200: {
-            description: "Default templates created successfully",
+            description: "Complete payroll setup created successfully",
             content: {
               "application/json": {
                 example: {
                   success: true,
+                  summary: {
+                    templates: 3,
+                    components: 21,
+                    compositions: 21,
+                    employee_structures: 3
+                  },
                   templates: [
-                    { id: 1, name: "Standard Employee Package", components: 6 },
-                    { id: 2, name: "Senior Employee Package", components: 7 },
-                    { id: 3, name: "Manager Package", components: 8 }
+                    { id: 1, name: "Standard Employee Package", components: 6, master_structure_id: 1 },
+                    { id: 2, name: "Senior Employee Package", components: 7, master_structure_id: 2 },
+                    { id: 3, name: "Manager Package", components: 8, master_structure_id: 3 }
                   ],
-                  components_created: 21,
-                  message: "Successfully created 3 default salary structure templates with 21 component definitions.",
-                  note: "These are templates. Use them to create actual salary structures for employees.",
-                  usage: "POST /api/payroll-master/structures with template reference to apply to employees"
+                  employee_structures: [
+                    { employee_id: 1, employee_name: "John Doe", structure_id: 4, template: "Standard Employee Package", ctc: 500000 },
+                    { employee_id: 2, employee_name: "Jane Smith", structure_id: 5, template: "Senior Employee Package", ctc: 800000 },
+                    { employee_id: 3, employee_name: "Bob Wilson", structure_id: 6, template: "Manager Package", ctc: 1200000 }
+                  ],
+                  message: "Successfully created complete payroll master data",
+                  note: "Complete payroll setup ready. Templates, components, compositions, and sample employee structures created.",
+                  next_steps: [
+                    "1. Run payroll: POST /api/payroll/v2/run with year and month",
+                    "2. View payslips: GET /api/payroll/v2/payslips/{employeeId}",
+                    "3. Assign more employees: POST /api/payroll-master/structures"
+                  ]
                 }
               }
             }
@@ -5502,7 +5417,7 @@ Skips employees who already have user accounts.
             content: {
               "application/json": {
                 example: {
-                  error: "Default templates already exist. Clear existing templates first or use force=true parameter.",
+                  error: "Default templates already exist. Clear existing templates first.",
                   existing_count: 3
                 }
               }
@@ -5514,19 +5429,24 @@ Skips employees who already have user accounts.
     },
     "/api/payroll-master/setup/clear": {
       delete: {
-        summary: "🗑️ Clear All Master Data",
-        description: "Delete all salary structure templates and compositions. Use with caution - this is for testing/reset purposes only.",
-        tags: ["Payroll Master"],
+        summary: "Clear All Payroll Data",
+        description: "⚠️ CAUTION: Deletes ALL payroll data - templates, components, structures, compositions, employee assignments. For testing/reset only. Use before re-populating defaults.",
+        tags: ["Payroll - Setup"],
         security: [{ bearerAuth: [] }],
         responses: {
           200: {
-            description: "Master data cleared",
+            description: "All payroll data cleared",
             content: {
               "application/json": {
                 example: {
                   success: true,
-                  message: "All master data cleared successfully",
-                  templates_deleted: 3
+                  message: "All payroll master data cleared successfully",
+                  deleted: {
+                    templates: 3,
+                    structures: 6,
+                    components: 63,
+                    compositions: 21
+                  }
                 }
               }
             }
@@ -5535,339 +5455,13 @@ Skips employees who already have user accounts.
         }
       }
     },
-    "/api/payroll/components": {
-      get: {
-        summary: "List Salary Components",
-        tags: ["Payroll Master"],
-        responses: { 200: { description: "List of salary components" } },
-      },
-      post: {
-        summary: "Create Salary Component",
-        tags: ["Payroll Master"],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  type: { type: "string", enum: ["Earning", "Deduction", "Reimbursement"] },
-                  is_statutory: { type: "boolean" },
-                  is_taxable: { type: "boolean" },
-                  calculation_type: { type: "string", enum: ["Flat", "Percentage", "Formula"] },
-                  created_by: { type: "integer" }
-                },
-                required: ["name", "type", "is_statutory", "is_taxable", "calculation_type", "created_by"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Component created" } },
-      },
-    },
-    "/api/payroll/components/{component_id}": {
-      get: {
-        summary: "Get Salary Component",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "component_id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Component details" } },
-      },
-      put: {
-        summary: "Update Salary Component",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "component_id", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  type: { type: "string", enum: ["Earning", "Deduction", "Reimbursement"] },
-                  is_statutory: { type: "boolean" },
-                  is_taxable: { type: "boolean" },
-                  calculation_type: { type: "string", enum: ["Flat", "Percentage", "Formula"] }
-                },
-                required: ["name", "type", "is_statutory", "is_taxable", "calculation_type"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Component updated" } },
-      },
-      delete: {
-        summary: "Delete Salary Component",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "component_id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Component deleted" } },
-      },
-    },
-    "/api/payroll/templates": {
-      get: {
-        summary: "List Salary Templates",
-        tags: ["Payroll Master"],
-        responses: { 200: { description: "List of salary templates" } },
-      },
-      post: {
-        summary: "Create Salary Template",
-        tags: ["Payroll Master"],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  template_name: { type: "string" },
-                  description: { type: "string" },
-                  created_by: { type: "integer" }
-                },
-                required: ["template_name", "created_by"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Template created" } },
-      },
-    },
-    "/api/payroll/templates/{id}": {
-      get: {
-        summary: "Get Salary Template",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Template details" } },
-      },
-      put: {
-        summary: "Update Salary Template",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  template_name: { type: "string" },
-                  description: { type: "string" }
-                },
-                required: ["template_name"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Template updated" } },
-      },
-      delete: {
-        summary: "Delete Salary Template",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Template deleted" } },
-      },
-    },
-    "/api/payroll/structures": {
-      get: {
-        summary: "List Salary Structures",
-        tags: ["Payroll Master"],
-        responses: { 200: { description: "List of salary structures" } },
-      },
-      post: {
-        summary: "Create Salary Structure",
-        tags: ["Payroll Master"],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  employee_id: { type: "integer" },
-                  component_name: { type: "string" },
-                  component_value: { type: "number" }
-                },
-                required: ["employee_id", "component_name", "component_value"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Structure created" } },
-      },
-    },
-    "/api/payroll/structures/{id}": {
-      get: {
-        summary: "Get Salary Structure",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Structure details" } },
-      },
-      put: {
-        summary: "Update Salary Structure",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  component_name: { type: "string" },
-                  component_value: { type: "number" }
-                },
-                required: ["component_name", "component_value"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Structure updated" } },
-      },
-      delete: {
-        summary: "Delete Salary Structure",
-        tags: ["Payroll Master"],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Structure deleted" } },
-      },
-    },
 
-    // ============ PAYROLL STRUCTURE COMPOSITION ============
-    "/api/payroll/master/structure-composition": {
-      get: {
-        summary: "List Structure Compositions",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        responses: { 200: { description: "List of structure compositions" } },
-      },
-      post: {
-        summary: "Add Structure Composition",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  structure_id: { type: "integer" },
-                  component_id: { type: "integer" },
-                  amount: { type: "number" },
-                  formula: { type: "string", nullable: true },
-                  created_by: { type: "integer" }
-                },
-                required: ["structure_id", "component_id", "amount", "created_by"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Structure composition added" } },
-      },
-    },
-    "/api/payroll/master/structure-composition/{id}": {
-      put: {
-        summary: "Update Structure Composition",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  amount: { type: "number" },
-                  formula: { type: "string", nullable: true }
-                },
-                required: ["amount"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Structure composition updated" } },
-      },
-      delete: {
-        summary: "Delete Structure Composition",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Structure composition deleted" } },
-      },
-    },
-
-    // ============ EMPLOYEE SALARY CONTRACTS ============
-    "/api/payroll/contracts": {
-      get: {
-        summary: "List Employee Salary Contracts",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        responses: { 200: { description: "List of employee salary contracts" } },
-      },
-      post: {
-        summary: "Create Employee Salary Contract",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  employee_id: { type: "integer" },
-                  template_id: { type: "integer" },
-                  annual_ctc: { type: "number" },
-                  effective_from: { type: "string", format: "date" },
-                  status: { type: "string", enum: ["Active", "Superseded"], default: "Active" }
-                },
-                required: ["employee_id", "template_id", "annual_ctc", "effective_from"]
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Employee contract created" } },
-      },
-    },
-    "/api/payroll/contracts/{id}": {
-      put: {
-        summary: "Update Employee Salary Contract",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  employee_id: { type: "integer" },
-                  template_id: { type: "integer" },
-                  annual_ctc: { type: "number" },
-                  effective_from: { type: "string", format: "date" },
-                  status: { type: "string", enum: ["Active", "Superseded"] }
-                }
-              },
-            },
-          },
-        },
-        responses: { 200: { description: "Employee contract updated" } },
-      },
-      delete: {
-        summary: "Delete Employee Salary Contract",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Employee contract deleted" } },
-      },
-    },
-
-    // ============ PAYROLL CYCLES & RUNS ============
+    // ============ 2️⃣ PAYROLL PROCESSING (Run & Calculate) ============
     "/api/payroll/v2/run": {
       post: {
-        summary: "Run Payroll for a Month",
-        tags: ["Payroll Master"],
+        summary: "Run Payroll for Month",
+        description: "Process payroll for all employees for a specific month. Calculates salaries, deductions, taxes, and generates payslips.",
+        tags: ["Payroll - Processing"],
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -5887,8 +5481,9 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Payroll run started and processed" } },
       },
       get: {
-        summary: "Get Payroll Run Summary for Month",
-        tags: ["Payroll Master"],
+        summary: "Get Payroll Run Summary",
+        description: "Get aggregated payroll summary for a month (total employees, gross pay, net pay, status).",
+        tags: ["Payroll - Processing"],
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: "month", in: "query", required: true, schema: { type: "string", example: "2026-02" }, description: "Month in YYYY-MM format" }
@@ -5896,21 +5491,13 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Payroll run summary for month" } },
       },
     },
-    "/api/payroll/v2/cycles/{cycleId}/lock": {
-      put: {
-        summary: "Lock Payroll Cycle",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "cycleId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Payroll cycle locked" } },
-      },
-    },
 
-    // ============ PAYSLIPS & SALARY BREAKUPS ============
+    // ============ 3️⃣ PAYROLL REPORTS (View & Download) ============
     "/api/payroll/v2/payslips/{employeeId}": {
       get: {
-        summary: "List Payslips for Employee",
-        tags: ["Payroll Master"],
+        summary: "List Employee Payslips",
+        description: "Get all payslips for an employee (all months).",
+        tags: ["Payroll - Reports"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "List of payslips for employee" } },
@@ -5918,8 +5505,9 @@ Skips employees who already have user accounts.
     },
     "/api/payroll/v2/payslips/{employeeId}/{year}/{month}": {
       get: {
-        summary: "Get Payslip Detail for Employee",
-        tags: ["Payroll Master"],
+        summary: "Get Payslip Details",
+        description: "Get detailed payslip for an employee for a specific month (gross, deductions, net pay, breakdown).",
+        tags: ["Payroll - Reports"],
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: "employeeId", in: "path", required: true, schema: { type: "integer" } },
@@ -5931,8 +5519,9 @@ Skips employees who already have user accounts.
     },
     "/api/payroll/v2/earnings/{employeeId}": {
       get: {
-        summary: "Get Earnings Breakup for Employee",
-        tags: ["Payroll Master"],
+        summary: "Get Earnings Breakdown",
+        description: "Get detailed earnings breakdown (BASIC, HRA, Allowances, etc.) for an employee for a month.",
+        tags: ["Payroll - Reports"],
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: "employeeId", in: "path", required: true, schema: { type: "integer" } },
@@ -5943,8 +5532,9 @@ Skips employees who already have user accounts.
     },
     "/api/payroll/v2/deductions/{employeeId}": {
       get: {
-        summary: "Get Deductions Breakup for Employee",
-        tags: ["Payroll Master"],
+        summary: "Get Deductions Breakdown",
+        description: "Get detailed deductions breakdown (PF, Tax, LOP, etc.) for an employee for a month.",
+        tags: ["Payroll - Reports"],
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: "employeeId", in: "path", required: true, schema: { type: "integer" } },
@@ -5955,8 +5545,9 @@ Skips employees who already have user accounts.
     },
     "/api/payroll/v2/tax-summary/{employeeId}": {
       get: {
-        summary: "Get Tax Summary for Employee",
-        tags: ["Payroll Master"],
+        summary: "Get Tax Summary",
+        description: "Get annual tax summary for an employee (TDS, Professional Tax, etc.).",
+        tags: ["Payroll - Reports"],
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: "employeeId", in: "path", required: true, schema: { type: "integer" } },
@@ -5965,63 +5556,44 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Tax summary for employee" } },
       },
     },
+    "/api/payroll/v2/structure/{employeeId}": {
+      get: {
+        summary: "Get Salary Structure",
+        description: "Get employee's current salary structure (CTC breakdown, components, percentages).",
+        tags: ["Payroll - Reports"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
+        responses: { 200: { description: "Employee salary structure details" } },
+      },
+    },
+    "/api/payroll/v2/attendance-impact/{employeeId}": {
+      get: {
+        summary: "Get Attendance Impact",
+        description: "Get attendance-based salary impact (LOP deductions, late arrival penalties) for a month.",
+        tags: ["Payroll - Reports"],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "employeeId", in: "path", required: true, schema: { type: "integer" } },
+          { name: "year", in: "query", required: true, schema: { type: "integer", example: 2026 } },
+          { name: "month", in: "query", required: true, schema: { type: "integer", example: 2 } }
+        ],
+        responses: { 200: { description: "Attendance impact details (deductions for absences/late arrival)" } },
+      },
+    },
 
-    // ============ PAYROLL TAX PROFILE & PAYOUTS ============
-    "/api/payroll/v2/employees/{employeeId}/tax-profile": {
+    // ============ 4️⃣ MASTER DATA - Components ============
+    "/api/payroll-master/components": {
       get: {
-        summary: "Get Employee Tax Profile",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Tax profile details" } },
-      },
-      put: {
-        summary: "Update Employee Tax Profile",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "employeeId", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } },
-        responses: { 200: { description: "Tax profile updated" } },
-      },
-    },
-    "/api/payroll/v2/payouts/initiate": {
-      post: {
-        summary: "Initiate Payroll Payout",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { runId: { type: "integer" } }, required: ["runId"] } } } },
-        responses: { 200: { description: "Payout initiated" } },
-      },
-    },
-    "/api/payroll/v2/payouts/{runId}": {
-      get: {
-        summary: "Get Payroll Payout by Run",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "runId", in: "path", required: true, schema: { type: "integer" } }],
-        responses: { 200: { description: "Payout details" } },
-      },
-    },
-    "/api/payroll/v2/payouts/{payoutId}/status": {
-      put: {
-        summary: "Update Payroll Payout Status",
-        tags: ["Payroll Master"],
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: "payoutId", in: "path", required: true, schema: { type: "integer" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { status: { type: "string" } }, required: ["status"] } } } },
-        responses: { 200: { description: "Payout status updated" } },
-      },
-    },
-    "/api/payroll/master/components": {
-      get: {
-        summary: "List Salary Components (Modular)",
-        tags: ["Payroll Master"],
+        summary: "List All Components",
+        description: "Get all salary components (BASIC, HRA, PF, etc.) with their calculation types.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         responses: { 200: { description: "List of salary components" } },
       },
       post: {
-        summary: "Create Salary Component (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Create Component",
+        description: "Create a new salary component (earning or deduction) with calculation rules.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -6048,17 +5620,19 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Component created" } },
       },
     },
-    "/api/payroll/master/components/{component_id}": {
+    "/api/payroll-master/components/{component_id}": {
       get: {
-        summary: "Get Salary Component (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Get Component Details",
+        description: "Get details of a specific salary component.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "component_id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "Component details" } },
       },
       put: {
-        summary: "Update Salary Component (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Update Component",
+        description: "Update an existing salary component.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "component_id", in: "path", required: true, schema: { type: "integer" } }],
         requestBody: {
@@ -6086,23 +5660,27 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Component updated" } },
       },
       delete: {
-        summary: "Delete Salary Component (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Delete Component",
+        description: "Delete a salary component (only if not used in any template).",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "component_id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "Component deleted" } },
       },
     },
-    "/api/payroll/master/templates": {
+    // ============ 5️⃣ MASTER DATA - Templates ============
+    "/api/payroll-master/templates": {
       get: {
-        summary: "List Salary Templates (Modular)",
-        tags: ["Payroll Master"],
+        summary: "List All Templates",
+        description: "Get all salary structure templates (Standard, Senior, Manager packages).",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         responses: { 200: { description: "List of salary templates" } },
       },
       post: {
-        summary: "Create Salary Template (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Create Template",
+        description: "Create a new salary structure template (e.g., 'Intern Package', 'Director Package').",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -6123,17 +5701,19 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Template created" } },
       },
     },
-    "/api/payroll/master/templates/{id}": {
+    "/api/payroll-master/templates/{id}": {
       get: {
-        summary: "Get Salary Template (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Get Template Details",
+        description: "Get details of a specific salary structure template.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "Template details" } },
       },
       put: {
-        summary: "Update Salary Template (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Update Template",
+        description: "Update a salary structure template.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         requestBody: {
@@ -6154,23 +5734,27 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Template updated" } },
       },
       delete: {
-        summary: "Delete Salary Template (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Delete Template",
+        description: "Delete a salary structure template.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "Template deleted" } },
       },
     },
-    "/api/payroll/master/structures": {
+    // ============ 6️⃣ MASTER DATA - Structures (Employee Assignments) ============
+    "/api/payroll-master/structures": {
       get: {
-        summary: "List Salary Structures (Modular)",
-        tags: ["Payroll Master"],
+        summary: "List All Structures",
+        description: "Get all employee salary assignments (which employee has which template).",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         responses: { 200: { description: "List of salary structures" } },
       },
       post: {
-        summary: "Create Salary Structure (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Assign Salary Structure",
+        description: "Assign a salary structure to an employee based on a template.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -6191,17 +5775,19 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Structure created" } },
       },
     },
-    "/api/payroll/master/structures/{id}": {
+    "/api/payroll-master/structures/{id}": {
       get: {
-        summary: "Get Salary Structure (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Get Structure Details",
+        description: "Get details of a specific employee salary structure.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "Structure details" } },
       },
       put: {
-        summary: "Update Salary Structure (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Update Structure",
+        description: "Update an employee's salary structure.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         requestBody: {
@@ -6222,11 +5808,86 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Structure updated" } },
       },
       delete: {
-        summary: "Delete Salary Structure (Modular)",
-        tags: ["Payroll Master"],
+        summary: "Remove Structure",
+        description: "Remove a salary structure assignment from an employee.",
+        tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { 200: { description: "Structure deleted" } },
+      },
+    },
+    // ============ 7️⃣ MASTER DATA - Template Composition (Components in Template) ============
+    "/api/payroll-master/templates/{template_id}/composition": {
+      get: {
+        summary: "List Template Components",
+        description: "Get all components configured in a template (BASIC 40%, HRA 20%, etc.).",
+        tags: ["Payroll - Master Data"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "template_id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: { 200: { description: "List of structure compositions for template" } },
+      },
+      post: {
+        summary: "Add Component",
+        description: "Add a salary component to a template with calculation rules (amount/percentage).",
+        tags: ["Payroll - Master Data"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "template_id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  component_id: { type: "integer" },
+                  amount: { type: "number" },
+                  formula: { type: "string", nullable: true }
+                },
+                required: ["component_id", "amount"]
+              },
+            },
+          },
+        },
+        responses: { 200: { description: "Component added to template" } },
+      },
+    },
+    "/api/payroll-master/templates/{template_id}/composition/{composition_id}": {
+      put: {
+        summary: "Update Component",
+        description: "Update a component in a template (change amount/percentage).",
+        tags: ["Payroll - Master Data"],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "template_id", in: "path", required: true, schema: { type: "integer" } },
+          { name: "composition_id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  amount: { type: "number" },
+                  formula: { type: "string", nullable: true }
+                },
+                required: ["amount"]
+              },
+            },
+          },
+        },
+        responses: { 200: { description: "Composition updated" } },
+      },
+      delete: {
+        summary: "Remove Component",
+        description: "Remove a component from a template.",
+        tags: ["Payroll - Master Data"],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "template_id", in: "path", required: true, schema: { type: "integer" } },
+          { name: "composition_id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        responses: { 200: { description: "Component removed from template" } },
       },
     },
 
