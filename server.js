@@ -25,6 +25,9 @@ const swaggerSpec = require("./swagger/swagger.spec.js");
 const { DB, db } = require("./config/database");
 const { JWT_SECRET } = require("./config/constants");
 
+// Import migration runner
+const { runMigrations } = require("./migrations/run-migrations");
+
 // Import middleware
 const { auth, admin, hr, manager, roleAuth } = require("./middleware/auth");
 
@@ -50,7 +53,9 @@ const supportRoutes = require("./routes/support.routes");
 const birthdayRoutes = require("./routes/birthday.routes");
 const holidayRoutes = require("./routes/holiday.routes");
 const reportRoutes = require("./routes/report.routes");
+const reportRoutesEnhanced = require("./routes/report.routes.enhanced"); // Enhanced analytics
 const notificationRoutes = require("./routes/notification.routes");
+const notificationRoutesEnhanced = require("./routes/notification.routes.enhanced"); // Enhanced notifications
 const workUpdatesRoutes = require("./routes/workupdates.routes");
 const adminTimesheetRoutes = require("./routes/admin-timesheet.routes");
 const projectRoutes = require("./routes/projects.routes");
@@ -311,9 +316,11 @@ app.use("/api/holidays", holidayRoutes);
 
 // Report Routes
 app.use("/api/reports", reportRoutes);
+app.use("/api/reports/analytics", reportRoutesEnhanced); // Enhanced analytics endpoints
+app.use("/api/reports/export", reportRoutesEnhanced); // Enhanced export endpoints
 
 // Notification Routes
-app.use("/api/notifications", notificationRoutes);
+app.use("/api/notifications", notificationRoutesEnhanced); // Enhanced notification system
 
 // Work Updates Routes (Employee)
 app.use("/api/work-updates", workUpdatesRoutes);
@@ -383,6 +390,15 @@ app.get("/api/health", (req, res) => {
         console.log("🔄 Initializing database...");
         await initializeDatabase();
         console.log("✅ Database initialized\n");
+
+        console.log("🔄 Running database migrations...");
+        const connection = await db.getConnection();
+        try {
+            await runMigrations(connection);
+        } finally {
+            connection.release();
+        }
+        console.log("✅ Migrations completed\n");
 
         console.log("🔄 Creating default admin user...");
         await ensureAdminUser();
