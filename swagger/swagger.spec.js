@@ -5602,17 +5602,19 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  name: { type: "string" },
-                  component_type: { type: "string", enum: ["EARNING", "DEDUCTION"] },
-                  calculation_type: { type: "string", enum: ["FIXED", "PERCENTAGE"] },
-                  value: { type: "number", format: "float", example: 10000 },
-                  percentage_of_code: { type: "string", example: "BASIC" },
-                  taxable: { type: "boolean", default: true },
-                  prorated: { type: "boolean", default: false },
-                  sequence: { type: "integer", default: 10 },
-                  notes: { type: "string" }
+                  structure_id: { type: "integer", description: "Reference to salary_structures.id", example: 1 },
+                  code: { type: "string", description: "Component code (e.g., BASIC, HRA)", example: "BASIC" },
+                  name: { type: "string", description: "Component name", example: "Basic Salary" },
+                  component_type: { type: "string", enum: ["EARNING", "DEDUCTION"], description: "Type of component" },
+                  calculation_type: { type: "string", enum: ["FIXED", "PERCENTAGE"], description: "How component is calculated" },
+                  value: { type: "number", format: "float", description: "Fixed amount or percentage value", example: 40.00 },
+                  percentage_of_code: { type: "string", description: "Code of base component for percentage calculation", example: "BASIC", nullable: true },
+                  taxable: { type: "boolean", default: true, description: "Whether component is taxable" },
+                  prorated: { type: "boolean", default: false, description: "Whether component is prorated" },
+                  sequence: { type: "integer", default: 10, description: "Display order" },
+                  notes: { type: "string", description: "Additional notes", nullable: true }
                 },
-                required: ["name", "component_type", "calculation_type"]
+                required: ["structure_id", "code", "name", "component_type", "calculation_type", "value"]
               },
             },
           },
@@ -5642,17 +5644,18 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  name: { type: "string" },
-                  component_type: { type: "string", enum: ["EARNING", "DEDUCTION"] },
-                  calculation_type: { type: "string", enum: ["FIXED", "PERCENTAGE"] },
-                  value: { type: "number", format: "float", example: 10000 },
-                  percentage_of_code: { type: "string", example: "BASIC" },
-                  taxable: { type: "boolean", default: true },
-                  prorated: { type: "boolean", default: false },
-                  sequence: { type: "integer", default: 10 },
-                  notes: { type: "string" }
+                  code: { type: "string", description: "Component code (e.g., BASIC, HRA)", example: "BASIC" },
+                  name: { type: "string", description: "Component name", example: "Basic Salary" },
+                  component_type: { type: "string", enum: ["EARNING", "DEDUCTION"], description: "Type of component" },
+                  calculation_type: { type: "string", enum: ["FIXED", "PERCENTAGE"], description: "How component is calculated" },
+                  value: { type: "number", format: "float", description: "Fixed amount or percentage value", example: 40.00 },
+                  percentage_of_code: { type: "string", description: "Code of base component for percentage calculation", example: "BASIC", nullable: true },
+                  taxable: { type: "boolean", default: true, description: "Whether component is taxable" },
+                  prorated: { type: "boolean", default: false, description: "Whether component is prorated" },
+                  sequence: { type: "integer", default: 10, description: "Display order" },
+                  notes: { type: "string", description: "Additional notes", nullable: true }
                 },
-                required: ["name", "component_type", "calculation_type"]
+                required: ["code", "name", "component_type", "calculation_type", "value"]
               },
             },
           },
@@ -5689,16 +5692,16 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  template_name: { type: "string" },
-                  description: { type: "string" },
-                  created_by: { type: "integer" }
+                  template_name: { type: "string", description: "Template name", example: "Senior Employee Package" },
+                  description: { type: "string", description: "Template description", example: "Salary structure for senior employees", nullable: true },
+                  created_by: { type: "integer", description: "User ID who created the template", example: 1 }
                 },
                 required: ["template_name", "created_by"]
               },
             },
           },
         },
-        responses: { 200: { description: "Template created" } },
+        responses: { 200: { description: "Template created successfully" } },
       },
     },
     "/api/payroll-master/templates/{id}": {
@@ -5715,7 +5718,7 @@ Skips employees who already have user accounts.
         description: "Update a salary structure template.",
         tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "template_id from salary_structure_templates table" }],
         requestBody: {
           required: true,
           content: {
@@ -5723,15 +5726,15 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  template_name: { type: "string" },
-                  description: { type: "string" }
+                  template_name: { type: "string", description: "Template name", example: "Senior Employee Package" },
+                  description: { type: "string", description: "Template description", example: "Updated salary structure for senior employees", nullable: true }
                 },
                 required: ["template_name"]
               },
             },
           },
         },
-        responses: { 200: { description: "Template updated" } },
+        responses: { 200: { description: "Template updated successfully" } },
       },
       delete: {
         summary: "Delete Template",
@@ -5752,8 +5755,8 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "List of salary structures" } },
       },
       post: {
-        summary: "Assign Salary Structure",
-        description: "Assign a salary structure to an employee based on a template.",
+        summary: "Create Salary Structure",
+        description: "Create a salary structure for an employee with CTC and components.",
         tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         requestBody: {
@@ -5763,16 +5766,41 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  employee_id: { type: "integer" },
-                  component_name: { type: "string" },
-                  component_value: { type: "number" }
+                  employee_id: { type: "integer", description: "Employee ID from employees table", example: 1 },
+                  structure_name: { type: "string", description: "Name of the salary structure", example: "2026 Annual Package" },
+                  ctc_amount: { type: "number", format: "float", description: "Annual CTC amount", example: 800000 },
+                  effective_from: { type: "string", format: "date", description: "Structure effective from date", example: "2026-01-01" },
+                  effective_to: { type: "string", format: "date", description: "Structure effective to date (optional)", nullable: true, example: null },
+                  is_active: { type: "boolean", default: true, description: "Whether structure is active" },
+                  notes: { type: "string", description: "Additional notes", nullable: true },
+                  created_by: { type: "integer", description: "User ID who created the structure", example: 1 },
+                  components: {
+                    type: "array",
+                    description: "Array of salary components (optional)",
+                    items: {
+                      type: "object",
+                      properties: {
+                        code: { type: "string", example: "BASIC" },
+                        name: { type: "string", example: "Basic Salary" },
+                        component_type: { type: "string", enum: ["EARNING", "DEDUCTION"] },
+                        calculation_type: { type: "string", enum: ["FIXED", "PERCENTAGE"] },
+                        value: { type: "number", format: "float", example: 40.00 },
+                        percentage_of_code: { type: "string", nullable: true },
+                        taxable: { type: "boolean", default: true },
+                        prorated: { type: "boolean", default: false },
+                        sequence: { type: "integer", default: 10 },
+                        notes: { type: "string", nullable: true }
+                      },
+                      required: ["code", "name", "component_type", "calculation_type", "value"]
+                    }
+                  }
                 },
-                required: ["employee_id", "component_name", "component_value"]
+                required: ["employee_id", "structure_name", "ctc_amount", "effective_from"]
               },
             },
           },
         },
-        responses: { 200: { description: "Structure created" } },
+        responses: { 200: { description: "Salary structure created successfully" } },
       },
     },
     "/api/payroll-master/structures/{id}": {
@@ -5785,11 +5813,11 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "Structure details" } },
       },
       put: {
-        summary: "Update Structure",
-        description: "Update an employee's salary structure.",
+        summary: "Update Salary Structure",
+        description: "Update an employee's salary structure details.",
         tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Structure ID from salary_structures table" }],
         requestBody: {
           required: true,
           content: {
@@ -5797,15 +5825,19 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  component_name: { type: "string" },
-                  component_value: { type: "number" }
+                  structure_name: { type: "string", description: "Name of the salary structure", example: "2026 Updated Package" },
+                  ctc_amount: { type: "number", format: "float", description: "Annual CTC amount", example: 850000 },
+                  effective_from: { type: "string", format: "date", description: "Structure effective from date", example: "2026-01-01" },
+                  effective_to: { type: "string", format: "date", description: "Structure effective to date (optional)", nullable: true },
+                  is_active: { type: "boolean", description: "Whether structure is active" },
+                  notes: { type: "string", description: "Additional notes", nullable: true }
                 },
-                required: ["component_name", "component_value"]
+                required: ["structure_name", "ctc_amount", "effective_from"]
               },
             },
           },
         },
-        responses: { 200: { description: "Structure updated" } },
+        responses: { 200: { description: "Salary structure updated successfully" } },
       },
       delete: {
         summary: "Remove Structure",
@@ -5827,11 +5859,11 @@ Skips employees who already have user accounts.
         responses: { 200: { description: "List of structure compositions for template" } },
       },
       post: {
-        summary: "Add Component",
-        description: "Add a salary component to a template with calculation rules (amount/percentage).",
+        summary: "Add Component to Template",
+        description: "Add a salary component to a template with calculation formula/value.",
         tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "template_id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [{ name: "template_id", in: "path", required: true, schema: { type: "integer" }, description: "Template ID from salary_structure_templates table" }],
         requestBody: {
           required: true,
           content: {
@@ -5839,27 +5871,27 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  component_id: { type: "integer" },
-                  amount: { type: "number" },
-                  formula: { type: "string", nullable: true }
+                  component_id: { type: "integer", description: "Component ID from salary_components table", example: 1 },
+                  formula_or_value: { type: "string", description: "Formula or fixed value (e.g., '40%', '50000')", example: "40%" },
+                  created_by: { type: "integer", description: "User ID who created the composition", example: 1 }
                 },
-                required: ["component_id", "amount"]
+                required: ["component_id", "formula_or_value"]
               },
             },
           },
         },
-        responses: { 200: { description: "Component added to template" } },
+        responses: { 200: { description: "Component added to template successfully" } },
       },
     },
     "/api/payroll-master/templates/{template_id}/composition/{composition_id}": {
       put: {
-        summary: "Update Component",
-        description: "Update a component in a template (change amount/percentage).",
+        summary: "Update Template Component",
+        description: "Update a component in a template (change formula/value).",
         tags: ["Payroll - Master Data"],
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: "template_id", in: "path", required: true, schema: { type: "integer" } },
-          { name: "composition_id", in: "path", required: true, schema: { type: "integer" } }
+          { name: "template_id", in: "path", required: true, schema: { type: "integer" }, description: "Template ID from salary_structure_templates table" },
+          { name: "composition_id", in: "path", required: true, schema: { type: "integer" }, description: "Composition ID from structure_composition table" }
         ],
         requestBody: {
           required: true,
@@ -5868,15 +5900,14 @@ Skips employees who already have user accounts.
               schema: {
                 type: "object",
                 properties: {
-                  amount: { type: "number" },
-                  formula: { type: "string", nullable: true }
+                  formula_or_value: { type: "string", description: "Formula or fixed value (e.g., '45%', '60000')", example: "45%" }
                 },
-                required: ["amount"]
+                required: ["formula_or_value"]
               },
             },
           },
         },
-        responses: { 200: { description: "Composition updated" } },
+        responses: { 200: { description: "Template component updated successfully" } },
       },
       delete: {
         summary: "Remove Component",
