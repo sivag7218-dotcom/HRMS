@@ -71,7 +71,8 @@ router.get("/my-team/list", auth, async (req, res) => {
     const c = await db();
 
     // NEW: If user is HR or Admin, return ALL working employees
-    if (req.user.role === 'hr' || req.user.role === 'admin') {
+    const userRole = req.user.role ? req.user.role.toLowerCase() : '';
+    if (userRole === 'hr' || userRole === 'admin') {
       console.log(`User role is ${req.user.role}, fetching all working employees`);
       const [allEmployees] = await c.query(
         `SELECT 
