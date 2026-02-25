@@ -262,31 +262,6 @@ router.get("/weekly-off-policies", auth, async (req, res) => {
     if (c && c.release) c.release();
   }
 });
-// router.get("/weekly-off-policies", auth, async (req, res) => {
-//     try {
-//         const c = await db();
-//         const [rows] = await c.query(`
-//             SELECT
-//                 wop.*,
-//                 l.name as location_name,
-//                 d.name as department_name,
-//                 sp.name as shift_policy_name,
-//                 u1.first_name as created_by_name,
-//                 u2.first_name as updated_by_name
-//             FROM weekly_off_policies wop
-//             LEFT JOIN locations l ON wop.location_id = l.id
-//             LEFT JOIN departments d ON wop.department_id = d.id
-//             LEFT JOIN shift_policies sp ON wop.shift_policy_id = sp.id
-//             LEFT JOIN users u1 ON wop.created_by = u1.id
-//             LEFT JOIN users u2 ON wop.updated_by = u2.id
-//             ORDER BY wop.is_active DESC, wop.effective_date DESC
-//         `);
-//         c.end();
-//         res.json(rows);
-//     } catch (err) {
-//         res.status(500).json({ error: err.message });
-//     }
-// });
 
 router.post("/weekly-off-policies", auth, hr, async (req, res) => {
   try {

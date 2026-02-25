@@ -54,7 +54,6 @@ const birthdayRoutes = require("./routes/birthday.routes");
 const holidayRoutes = require("./routes/holiday.routes");
 const reportRoutes = require("./routes/report.routes");
 const reportRoutesEnhanced = require("./routes/report.routes.enhanced"); // Enhanced analytics
-const notificationRoutes = require("./routes/notification.routes");
 const notificationRoutesEnhanced = require("./routes/notification.routes.enhanced"); // Enhanced notifications
 const workUpdatesRoutes = require("./routes/workupdates.routes");
 const adminTimesheetRoutes = require("./routes/admin-timesheet.routes");
