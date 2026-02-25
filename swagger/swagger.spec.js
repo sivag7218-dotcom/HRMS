@@ -2046,23 +2046,6 @@ Skips employees who already have user accounts.
     },
 
     // ============ LEAVES & WFH REQUESTS ============
-    "/api/leaves/apply": {
-      post: {
-        summary: "Apply for Leave",
-        tags: ["🏖️ Leave Management"],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/LeaveApplication" },
-            },
-          },
-        },
-        responses: {
-          200: { description: "Leave applied successfully" },
-        },
-      },
-    },
     "/api/leaves/wfh-request": {
       post: {
         summary: "🆕 Request WFH/Remote Work",
@@ -3435,42 +3418,6 @@ Skips employees who already have user accounts.
     },
 
     // ============ MANAGER ACTIONS ============
-    "/api/leaves/pending": {
-      get: {
-        summary: "Get Pending Leave Requests (Manager/HR)",
-        description:
-          "HR/Admin see all pending leaves. Managers see only their direct reports' pending leaves.",
-        tags: ["👔 Manager Actions"],
-        responses: {
-          200: {
-            description: "List of pending leave requests",
-            content: {
-              "application/json": {
-                example: [
-                  {
-                    id: 25,
-                    employee_id: 885,
-                    EmployeeNumber: "EMP001",
-                    FirstName: "John",
-                    LastName: "Doe",
-                    WorkEmail: "john@company.com",
-                    leave_type_id: 1,
-                    type_name: "Casual Leave",
-                    type_code: "CL",
-                    start_date: "2025-12-28",
-                    end_date: "2025-12-30",
-                    total_days: 3,
-                    reason: "Family function",
-                    status: "pending",
-                    applied_at: "2025-12-26T10:30:00",
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-    },
     "/api/leave-enhanced/approve/{leaveId}": {
       put: {
         summary: "Approve Leave Request (Manager/HR)",
@@ -7563,34 +7510,33 @@ try {
 }
 
 // Ensure a top-level `Payroll` tag exists and assign it to payroll-related paths
-try {
-  swaggerSpec.tags = swaggerSpec.tags || [];
-  if (!swaggerSpec.tags.find(t => t.name === 'Payroll')) {
-    swaggerSpec.tags.push({ name: 'Payroll', description: 'Payroll and payslips APIs (v2 and legacy)' });
-  }
+// try {
+//   swaggerSpec.tags = swaggerSpec.tags || [];
+//   if (!swaggerSpec.tags.find(t => t.name === 'Payroll')) {
+//     swaggerSpec.tags.push({ name: 'Payroll', description: 'Payroll and payslips APIs (v2 and legacy)' });
+//   }
 
-  Object.keys(swaggerSpec.paths || {}).forEach((p) => {
-    if (p.includes('/payroll') || p.includes('/payslips') || p.includes('/payslip')) {
-      const ops = swaggerSpec.paths[p];
-      Object.keys(ops).forEach((m) => {
-        ops[m].tags = ops[m].tags || [];
-        // Only add Payroll tag to process endpoints, not Payroll Master endpoints
-        if (
-          !ops[m].tags.includes('Payroll') &&
-          !ops[m].tags.includes('Payroll Master') &&
-          !ops[m].tags.includes('📊 Reports') &&
-          !ops[m].tags.includes('📤 Upload')
-        ) {
-          ops[m].tags.unshift('Payroll');
-        }
-      });
-    }
-  });
-} catch (e) {
-  // ignore
-}
+//   Object.keys(swaggerSpec.paths || {}).forEach((p) => {
+//     if (p.includes('/payroll') || p.includes('/payslips') || p.includes('/payslip')) {
+//       const ops = swaggerSpec.paths[p];
+//       Object.keys(ops).forEach((m) => {
+//         ops[m].tags = ops[m].tags || [];
+//         // Only add Payroll tag to process endpoints, not Payroll Master endpoints
+//         if (
+//           !ops[m].tags.includes('Payroll') &&
+//           !ops[m].tags.includes('Payroll Master') &&
+//           !ops[m].tags.includes('📊 Reports') &&
+//           !ops[m].tags.includes('📤 Upload')
+//         ) {
+//           ops[m].tags.unshift('Payroll');
+//         }
+//       });
+//     }
+//   });
+// } catch (e) {
+//   // ignore
+// }
 
-// --- PATCH: Add Modern Payroll Component-Based APIs ---
 Object.assign(swaggerSpec.paths, {
   // ============================================
   // PROJECT MANAGEMENT APIs
