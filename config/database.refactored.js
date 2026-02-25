@@ -70,7 +70,6 @@ function getPool() {
         
         // Log pool creation
         console.log(`[DB] Connection pool created (limit: ${DB.connectionLimit})`);
-        console.log(`[DB] Using database: ${DB.database}`);
         
         // Set up pool event listeners for monitoring
         __pool.on('acquire', (connection) => {

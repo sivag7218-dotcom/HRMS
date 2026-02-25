@@ -8,31 +8,39 @@ const { auth } = require("../middleware/auth");
 
 // LOGIN
 router.post("/login", async (req, res) => {
-  const c = await db();
-  const [u] = await c.query("SELECT * FROM users WHERE username=?", [
-    req.body.username,
-  ]);
-  c.end();
-  if (!u.length)
-    return res.status(401).json({ message: "Invalid credentials" });
+  let c = null;
+  try {
+    c = await db();
+    const [u] = await c.query("SELECT * FROM users WHERE username=?", [
+      req.body.username,
+    ]);
+    
+    if (!u.length)
+      return res.status(401).json({ message: "Invalid credentials" });
 
-  const ok = await bcrypt.compare(req.body.password, u[0].password_hash);
-  if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+    const ok = await bcrypt.compare(req.body.password, u[0].password_hash);
+    if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
-  const token = jwt.sign({ id: u[0].id, role: u[0].role }, JWT_SECRET, {
-    expiresIn: "8h",
-  });
+    const token = jwt.sign({ id: u[0].id, role: u[0].role }, JWT_SECRET, {
+      expiresIn: "8h",
+    });
 
-  res.json({
-    token,
-    user: { id: u[0].id, username: u[0].username, role: u[0].role },
-  });
+    res.json({
+      token,
+      user: { id: u[0].id, username: u[0].username, role: u[0].role },
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Login failed", message: error.message });
+  } finally {
+    if (c) await c.end();
+  }
 });
 
 // Logout
 router.post("/logout", auth, async (req, res) => {
+  let c = null;
   try {
-    const c = await db();
+    c = await db();
 
     // Log logout activity for audit trail
     await c
@@ -44,8 +52,6 @@ router.post("/logout", auth, async (req, res) => {
       .catch((err) =>
         console.log("Failed to log logout activity:", err.message)
       );
-
-    c.end();
 
     console.log(
       `User ${req.user.id} (${
@@ -65,6 +71,8 @@ router.post("/logout", auth, async (req, res) => {
   } catch (error) {
     console.error("Logout error:", error);
     res.status(500).json({ error: "Logout failed", message: error.message });
+  } finally {
+    if (c) await c.end();
   }
 });
 
@@ -89,51 +97,65 @@ router.post("/forgot-password", async (req, res) => {
 // Request password reset
 router.post("/password/reset/request", async (req, res) => {
   const { username } = req.body;
-  const c = await db();
-  const [u] = await c.query("SELECT id FROM users WHERE username = ?", [
-    username,
-  ]);
-  c.end();
-  if (!u.length) return res.status(404).json({ error: "User not found" });
-  const token = jwt.sign({ userId: u[0].id, type: "reset" }, JWT_SECRET, {
-    expiresIn: "1h",
-  });
-  res.json({ message: "Reset link sent (mock email)", token });
+  let c = null;
+  try {
+    c = await db();
+    const [u] = await c.query("SELECT id FROM users WHERE username = ?", [
+      username,
+    ]);
+    if (!u.length) return res.status(404).json({ error: "User not found" });
+    const token = jwt.sign({ userId: u[0].id, type: "reset" }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.json({ message: "Reset link sent (mock email)", token });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (c) await c.end();
+  }
 });
 
 // Confirm password reset
 router.post("/password/reset/confirm", async (req, res) => {
   const { token, password } = req.body;
+  let c = null;
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const hash = await bcrypt.hash(password, 10);
-    const c = await db();
+    c = await db();
     await c.query("UPDATE users SET password_hash = ? WHERE id = ?", [
       hash,
       decoded.userId,
     ]);
-    c.end();
     res.json({ message: "Password reset successfully" });
-  } catch {
+  } catch (error) {
     res.status(400).json({ error: "Invalid or expired token" });
+  } finally {
+    if (c) await c.end();
   }
 });
 
 // Send password setup link
 router.post("/password/setup/send/:empId", auth, async (req, res) => {
-  const c = await db();
-  const [emp] = await c.query(
-    "SELECT id, WorkEmail FROM employees WHERE id = ?",
-    [req.params.empId]
-  );
-  c.end();
-  if (!emp.length) return res.status(404).json({ error: "Employee not found" });
-  const token = jwt.sign(
-    { empId: req.params.empId, type: "setup" },
-    JWT_SECRET,
-    { expiresIn: "24h" }
-  );
-  res.json({ message: "Setup link sent to email (mock)", token });
+  let c = null;
+  try {
+    c = await db();
+    const [emp] = await c.query(
+      "SELECT id, WorkEmail FROM employees WHERE id = ?",
+      [req.params.empId]
+    );
+    if (!emp.length) return res.status(404).json({ error: "Employee not found" });
+    const token = jwt.sign(
+      { empId: req.params.empId, type: "setup" },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+    res.json({ message: "Setup link sent to email (mock)", token });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (c) await c.end();
+  }
 });
 
 // Validate password setup token
@@ -152,8 +174,9 @@ router.post("/password/create", async (req, res) => {
   if (!employee_id || !password)
     return res.status(400).json({ error: "Employee ID and password required" });
 
-  const c = await db();
+  let c = null;
   try {
+    c = await db();
     let emp;
     if (/^\d+$/.test(String(employee_id))) {
       const [rows] = await c.query(
@@ -169,7 +192,6 @@ router.post("/password/create", async (req, res) => {
       emp = rows;
     }
     if (!emp || !emp.length) {
-      c.end();
       return res.status(404).json({ error: "Employee not found" });
     }
 
@@ -183,12 +205,12 @@ router.post("/password/create", async (req, res) => {
       [username, hash, role, fullName]
     );
 
-    c.end();
     res.json({ message: "Password set successfully" });
   } catch (err) {
-    c.end();
     console.error("password create error", err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (c) await c.end();
   }
 });
 
@@ -198,13 +220,13 @@ router.get("/employee/check", async (req, res) => {
   if (!email)
     return res.status(400).json({ error: "Email parameter required" });
 
-  const c = await db();
+  let c = null;
   try {
+    c = await db();
     const [emp] = await c.query(
       "SELECT e.id, e.EmployeeNumber, e.FullName, e.WorkEmail, d.name as Designation, dept.name as Department, l.name as Location, e.EmploymentStatus FROM employees e LEFT JOIN designations d ON e.DesignationId = d.id LEFT JOIN departments dept ON e.DepartmentId = dept.id LEFT JOIN locations l ON e.LocationId = l.id WHERE e.WorkEmail = ?",
       [email]
     );
-    c.end();
 
     if (!emp.length) {
       return res.status(404).json({
@@ -214,12 +236,10 @@ router.get("/employee/check", async (req, res) => {
     }
 
     // Check if user account exists
-    const c2 = await db();
-    const [user] = await c2.query(
+    const [user] = await c.query(
       "SELECT id, username, role FROM users WHERE username = ?",
       [email]
     );
-    c2.end();
 
     res.json({
       found: true,
@@ -228,9 +248,10 @@ router.get("/employee/check", async (req, res) => {
       userInfo: user.length > 0 ? user[0] : null,
     });
   } catch (err) {
-    c.end();
     console.error("employee check error", err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (c) await c.end();
   }
 });
 

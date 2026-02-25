@@ -16,40 +16,81 @@ const payrollAdmin = require('../controllers/payroll.admin.controller');
 
 // Create payroll defaults
 router.post("/defaults", auth, admin, async (req, res) => {
-    const { pf_percent, esi_percent, professional_tax, variable_pay_percent } = req.body;
-    const c = await db();
-    const [result] = await c.query("INSERT INTO payroll_defaults SET ?", {
-        pf_percent, esi_percent, professional_tax, variable_pay_percent
-    });
-    c.end();
-    res.json({ id: result.insertId, success: true });
+    let c = null;
+    try {
+        const { pf_percent, esi_percent, professional_tax, variable_pay_percent } = req.body;
+        c = await db();
+        const [result] = await c.query("INSERT INTO payroll_defaults SET ?", {
+            pf_percent, esi_percent, professional_tax, variable_pay_percent
+        });
+        res.json({ id: result.insertId, success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Get payroll defaults
 router.get("/defaults", auth, hr, async (req, res) => {
-    const c = await db();
-    const [r] = await c.query("SELECT * FROM payroll_defaults LIMIT 1");
-    c.end();
-    res.json(r[0] || {});
+    let c = null;
+    try {
+        c = await db();
+        const [r] = await c.query("SELECT * FROM payroll_defaults LIMIT 1");
+        res.json(r[0] || {});
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 /* ============ NEW MODERN API ENDPOINTS (Phase-1) ============ */
+
+// Authorization middleware for payroll data access
+const canViewPayrollData = async (req, res, next) => {
+    try {
+        const requestedEmployeeId = parseInt(req.params.employeeId);
+        const userRole = (req.user.role || '').toLowerCase();
+        
+        // Admin and HR can view anyone's payroll
+        if (userRole === 'admin' || userRole === 'hr') {
+            return next();
+        }
+        
+        // Get viewer's employee record
+        const viewerEmployee = await findEmployeeByUserId(req.user.id);
+        if (!viewerEmployee) {
+            return res.status(403).json({ error: "Unauthorized: Employee record not found" });
+        }
+        
+        // Can only view own payroll data
+        if (viewerEmployee.id !== requestedEmployeeId) {
+            return res.status(403).json({ error: "Unauthorized: You can only view your own payroll data" });
+        }
+        
+        next();
+    } catch (error) {
+        console.error('[canViewPayrollData] Error:', error);
+        res.status(500).json({ error: "Authorization check failed" });
+    }
+};
 
 // Modern v2 API endpoints to avoid clashing with legacy routes
 // POST /api/payroll/v2/run  { year: 2026, month: 2 }
 router.post('/v2/run', auth, admin, payrollCtrl.runPayroll);
 
 // GET /api/payroll/v2/payslips/:employeeId
-router.get('/v2/payslips/:employeeId', auth, payrollCtrl.listPayslips);
+router.get('/v2/payslips/:employeeId', auth, canViewPayrollData, payrollCtrl.listPayslips);
 
 // GET /api/payroll/v2/payslips/:employeeId/:year/:month
-router.get('/v2/payslips/:employeeId/:year/:month', auth, payrollCtrl.payslipDetail);
+router.get('/v2/payslips/:employeeId/:year/:month', auth, canViewPayrollData, payrollCtrl.payslipDetail);
 
 // GET /api/payroll/v2/structure/:employeeId
-router.get('/v2/structure/:employeeId', auth, payrollCtrl.getSalaryStructure);
+router.get('/v2/structure/:employeeId', auth, canViewPayrollData, payrollCtrl.getSalaryStructure);
 
 // GET /api/payroll/v2/attendance-impact/:employeeId?year=2026&month=2
-router.get('/v2/attendance-impact/:employeeId', auth, payrollCtrl.getAttendanceImpact);
+router.get('/v2/attendance-impact/:employeeId', auth, canViewPayrollData, payrollCtrl.getAttendanceImpact);
 
 // GET /api/payroll/v2/run?month=YYYY-MM  -> summary for a month (admin/hr)
 router.get('/v2/run', auth, hr, async (req, res) => {
@@ -59,8 +100,9 @@ router.get('/v2/run', auth, hr, async (req, res) => {
     if (parts.length !== 2) return res.status(400).json({ error: 'month format must be YYYY-MM' });
     const year = Number(parts[0]);
     const mon = Number(parts[1]);
-    const c = await db();
+    let c = null;
     try {
+        c = await db();
         const [rows] = await c.query(
             `SELECT r.id as run_id, r.status, r.started_at, r.completed_at, COUNT(s.id) as employee_count, SUM(s.gross_earnings) as total_gross, SUM(s.net_pay) as total_net
              FROM payroll_runs r
@@ -70,11 +112,11 @@ router.get('/v2/run', auth, hr, async (req, res) => {
              GROUP BY r.id`,
             [year, mon]
         );
-        c.end();
         res.json(rows);
     } catch (err) {
-        c.end();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
@@ -86,30 +128,32 @@ router.get('/v2/run/:employeeId', auth, hr, async (req, res) => {
     const parts = month.split('-');
     const year = Number(parts[0]);
     const mon = Number(parts[1]);
-    const c = await db();
+    let c = null;
     try {
+        c = await db();
         const [rows] = await c.query(
             `SELECT s.* FROM payroll_employee_salaries s JOIN payroll_runs r ON r.id = s.run_id JOIN payroll_cycles cy ON cy.id = r.cycle_id WHERE s.employee_id = ? AND cy.year = ? AND cy.month = ? LIMIT 1`,
             [employeeId, year, mon]
         );
-        c.end();
         res.json(rows[0] || null);
     } catch (err) {
-        c.end();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // GET /api/payroll/v2/earnings/:employeeId?month=YYYY-MM
-router.get('/v2/earnings/:employeeId', auth, async (req, res) => {
+router.get('/v2/earnings/:employeeId', auth, canViewPayrollData, async (req, res) => {
     const { month } = req.query;
     const employeeId = Number(req.params.employeeId);
     if (!month) return res.status(400).json({ error: 'month query required (YYYY-MM)' });
     const parts = month.split('-');
     const year = Number(parts[0]);
     const mon = Number(parts[1]);
-    const c = await db();
+    let c = null;
     try {
+        c = await db();
         const [rows] = await c.query(
             `SELECT b.component_code, b.component_name, b.amount FROM payroll_salary_breakups b
              JOIN payroll_employee_salaries s ON s.id = b.employee_salary_id
@@ -118,24 +162,25 @@ router.get('/v2/earnings/:employeeId', auth, async (req, res) => {
              WHERE s.employee_id = ? AND cy.year = ? AND cy.month = ? AND b.component_type = 'EARNING'`,
             [employeeId, year, mon]
         );
-        c.end();
         res.json(rows);
     } catch (err) {
-        c.end();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // GET /api/payroll/v2/deductions/:employeeId?month=YYYY-MM
-router.get('/v2/deductions/:employeeId', auth, async (req, res) => {
+router.get('/v2/deductions/:employeeId', auth, canViewPayrollData, async (req, res) => {
     const { month } = req.query;
     const employeeId = Number(req.params.employeeId);
     if (!month) return res.status(400).json({ error: 'month query required (YYYY-MM)' });
     const parts = month.split('-');
     const year = Number(parts[0]);
     const mon = Number(parts[1]);
-    const c = await db();
+    let c = null;
     try {
+        c = await db();
         const [rows] = await c.query(
             `SELECT b.component_code, b.component_name, b.amount FROM payroll_salary_breakups b
              JOIN payroll_employee_salaries s ON s.id = b.employee_salary_id
@@ -144,21 +189,22 @@ router.get('/v2/deductions/:employeeId', auth, async (req, res) => {
              WHERE s.employee_id = ? AND cy.year = ? AND cy.month = ? AND b.component_type = 'DEDUCTION'`,
             [employeeId, year, mon]
         );
-        c.end();
         res.json(rows);
     } catch (err) {
-        c.end();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // GET /api/payroll/v2/tax-summary/:employeeId?year=YYYY
-router.get('/v2/tax-summary/:employeeId', auth, async (req, res) => {
+router.get('/v2/tax-summary/:employeeId', auth, canViewPayrollData, async (req, res) => {
     const year = Number(req.query.year);
     const employeeId = Number(req.params.employeeId);
     if (!year) return res.status(400).json({ error: 'year query required' });
-    const c = await db();
+    let c = null;
     try {
+        c = await db();
         const [rows] = await c.query(
             `SELECT cy.year, td.deduction_code, SUM(td.amount) as total FROM payroll_tax_deductions td
              JOIN payroll_employee_salaries s ON s.id = td.employee_salary_id
@@ -167,16 +213,16 @@ router.get('/v2/tax-summary/:employeeId', auth, async (req, res) => {
              WHERE s.employee_id = ? AND cy.year = ? GROUP BY td.deduction_code`,
             [employeeId, year]
         );
-        c.end();
         res.json(rows);
     } catch (err) {
-        c.end();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // GET /api/payroll/v2/form16/:employeeId?year=YYYY  (placeholder metadata)
-router.get('/v2/form16/:employeeId', auth, async (req, res) => {
+router.get('/v2/form16/:employeeId', auth, canViewPayrollData, async (req, res) => {
     const year = Number(req.query.year);
     const employeeId = Number(req.params.employeeId);
     if (!year) return res.status(400).json({ error: 'year query required' });
@@ -185,12 +231,12 @@ router.get('/v2/form16/:employeeId', auth, async (req, res) => {
 });
 
 // GET /api/payroll/v2/form16/:employeeId/:year/download (placeholder)
-router.get('/v2/form16/:employeeId/:year/download', auth, async (req, res) => {
+router.get('/v2/form16/:employeeId/:year/download', auth, canViewPayrollData, async (req, res) => {
     res.status(501).json({ error: 'Form16 PDF download not implemented' });
 });
 
 // GET /api/payroll/v2/payslips/:employeeId/:month (month=YYYY-MM)
-router.get('/v2/payslips/:employeeId/:month', auth, async (req, res) => {
+router.get('/v2/payslips/:employeeId/:month', auth, canViewPayrollData, async (req, res) => {
     const employeeId = Number(req.params.employeeId);
     const month = req.params.month; // YYYY-MM
     if (!month) return res.status(400).json({ error: 'month required (YYYY-MM)' });
@@ -232,10 +278,16 @@ router.put('/v2/payouts/:payoutId/status', auth, hr, payrollAdmin.updatePayoutSt
 
 // Update payroll defaults
 router.put("/defaults/:id", auth, admin, async (req, res) => {
-    const c = await db();
-    await c.query("UPDATE payroll_defaults SET ? WHERE id = ?", [req.body, req.params.id]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("UPDATE payroll_defaults SET ? WHERE id = ?", [req.body, req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 /* ============ SALARY STRUCTURE ============ */
@@ -254,29 +306,52 @@ router.post("/salary/structure/:empId", auth, hr, async (req, res) => {
         { name: "other_deductions", value: req.body.other_deductions }
     ];
 
-    const c = await db();
-    // Remove existing structure for this employee
-    await c.query("DELETE FROM salary_structures WHERE employee_id = ?", [empId]);
+    let c = null;
+    try {
+        c = await db();
+        // Remove existing structure for this employee
+        await c.query("DELETE FROM salary_structures WHERE employee_id = ?", [empId]);
 
-    // Insert each component as a row
-    for (const comp of components) {
-        if (comp.value !== undefined && comp.value !== null) {
-            await c.query(
-                "INSERT INTO salary_structures (employee_id, component_name, component_value) VALUES (?, ?, ?)",
-                [empId, comp.name, parseFloat(comp.value) || 0]
-            );
+        // Insert each component as a row
+        for (const comp of components) {
+            if (comp.value !== undefined && comp.value !== null) {
+                await c.query(
+                    "INSERT INTO salary_structures (employee_id, component_name, component_value) VALUES (?, ?, ?)",
+                    [empId, comp.name, parseFloat(comp.value) || 0]
+                );
+            }
         }
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
     }
-    c.end();
-    res.json({ success: true });
 });
 
 // Get salary structure
 router.get("/salary/structure/:empId", auth, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT * FROM salary_structures WHERE employee_id = ?", [req.params.empId]);
-    c.end();
-    res.json({ success: true, salaryStructure: rows });
+    const empId = parseInt(req.params.empId);
+    const userRole = (req.user.role || '').toLowerCase();
+    
+    // Check authorization: only self, HR, or Admin
+    if (userRole !== 'admin' && userRole !== 'hr') {
+        const viewerEmployee = await findEmployeeByUserId(req.user.id);
+        if (!viewerEmployee || viewerEmployee.id !== empId) {
+            return res.status(403).json({ error: "Unauthorized to view this employee's salary structure" });
+        }
+    }
+    
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT * FROM salary_structures WHERE employee_id = ?", [empId]);
+        res.json({ success: true, salaryStructure: rows });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 /* ============ PAYROLL GENERATION ============ */
@@ -284,9 +359,10 @@ router.get("/salary/structure/:empId", auth, async (req, res) => {
 // Generate payroll for a month
 router.post("/generate", auth, admin, async (req, res) => {
     const { month, year } = req.body;
-    const c = await db();
+    let c = null;
     
     try {
+        c = await db();
         // Create payroll run
         const [runResult] = await c.query(
             "INSERT INTO payroll_runs (month, year, status, created_by) VALUES (?, ?, 'processing', ?)",
@@ -345,38 +421,50 @@ router.post("/generate", auth, admin, async (req, res) => {
             [runId]
         );
         
-        c.end();
         res.json({ success: true, run_id: runId, processed: processedCount });
         
     } catch (error) {
-        c.end();
         res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // List payroll runs
 router.get("/runs", auth, hr, async (req, res) => {
-    const c = await db();
-    const [runs] = await c.query(
-        `SELECT pr.*, COUNT(ps.id) as slip_count, SUM(ps.net_pay) as total_payout
-         FROM payroll_runs pr
-         LEFT JOIN payroll_slips ps ON pr.id = ps.payroll_run_id
-         GROUP BY pr.id
-         ORDER BY pr.created_at DESC`
-    );
-    c.end();
-    res.json(runs);
+    let c = null;
+    try {
+        c = await db();
+        const [runs] = await c.query(
+            `SELECT pr.*, COUNT(ps.id) as slip_count, SUM(ps.net_pay) as total_payout
+             FROM payroll_runs pr
+             LEFT JOIN payroll_slips ps ON pr.id = ps.payroll_run_id
+             GROUP BY pr.id
+             ORDER BY pr.created_at DESC`
+        );
+        res.json(runs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Get payroll by run (legacy endpoint)
-router.get("/:run", auth, async (req, res) => {
-    const c = await db();
-    const [r] = await c.query(
-        "SELECT ps.*, e.FirstName, e.LastName FROM payroll_slips ps LEFT JOIN employees e ON ps.employee_id = e.id WHERE ps.payroll_run_id = ?",
-        [req.params.run]
-    );
-    c.end();
-    res.json(r);
+router.get("/:run", auth, hr, async (req, res) => {
+    let c = null;
+    try {
+        c = await db();
+        const [r] = await c.query(
+            "SELECT ps.*, e.FirstName, e.LastName FROM payroll_slips ps LEFT JOIN employees e ON ps.employee_id = e.id WHERE ps.payroll_run_id = ?",
+            [req.params.run]
+        );
+        res.json(r);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Recalculate payroll for employee
@@ -384,14 +472,14 @@ router.post("/recalculate/:empId", auth, admin, async (req, res) => {
     const { empId } = req.params;
     const { month, year } = req.body;
     
-    const c = await db();
+    let c = null;
     
     try {
+        c = await db();
         // Get salary structure
         const [structure] = await c.query("SELECT * FROM salary_structures WHERE employee_id = ?", [empId]);
         
         if (structure.length === 0) {
-            c.end();
             return res.status(404).json({ error: "Salary structure not found" });
         }
         
@@ -419,12 +507,12 @@ router.post("/recalculate/:empId", auth, admin, async (req, res) => {
             [empId, month, year, basicEarned, hraEarned, grossEarned, s.pf, s.esi, s.professional_tax, netEarned, presentDays, workingDays]
         );
         
-        c.end();
         res.json({ success: true, net_salary: netEarned });
         
     } catch (error) {
-        c.end();
         res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
@@ -432,38 +520,100 @@ router.post("/recalculate/:empId", auth, admin, async (req, res) => {
 
 // Get all payslips (HR)
 router.get("/slips/all", auth, hr, async (req, res) => {
-    const c = await db();
-    const [r] = await c.query(
-        "SELECT ps.*, e.FirstName, e.LastName FROM payroll_slips ps LEFT JOIN employees e ON ps.employee_id = e.id ORDER BY ps.created_at DESC"
-    );
-    c.end();
-    res.json(r);
+    let c = null;
+    try {
+        c = await db();
+        const [r] = await c.query(
+            "SELECT ps.*, e.FirstName, e.LastName FROM payroll_slips ps LEFT JOIN employees e ON ps.employee_id = e.id ORDER BY ps.created_at DESC"
+        );
+        res.json(r);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Get employee payslips
 router.get("/slips/employee/:employee_id", auth, async (req, res) => {
-    const c = await db();
-    const [r] = await c.query("SELECT * FROM payroll_slips WHERE employee_id = ? ORDER BY year DESC, month DESC", 
-        [req.params.employee_id]);
-    c.end();
-    res.json(r);
+    const employeeId = parseInt(req.params.employee_id);
+    const userRole = (req.user.role || '').toLowerCase();
+    
+    // Check authorization: only self, HR, or Admin
+    if (userRole !== 'admin' && userRole !== 'hr') {
+        const viewerEmployee = await findEmployeeByUserId(req.user.id);
+        if (!viewerEmployee || viewerEmployee.id !== employeeId) {
+            return res.status(403).json({ error: "Unauthorized to view this employee's payslips" });
+        }
+    }
+    
+    let c = null;
+    try {
+        c = await db();
+        const [r] = await c.query("SELECT * FROM payroll_slips WHERE employee_id = ? ORDER BY year DESC, month DESC", 
+            [employeeId]);
+        res.json(r);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Get single payslip
 router.get("/slips/:employee_id/:slip_id", auth, async (req, res) => {
-    const c = await db();
-    const [r] = await c.query("SELECT * FROM payroll_slips WHERE employee_id = ? AND id = ?", 
-        [req.params.employee_id, req.params.slip_id]);
-    c.end();
-    res.json(r[0] || null);
+    const employeeId = parseInt(req.params.employee_id);
+    const userRole = (req.user.role || '').toLowerCase();
+    
+    // Check authorization: only self, HR, or Admin
+    if (userRole !== 'admin' && userRole !== 'hr') {
+        const viewerEmployee = await findEmployeeByUserId(req.user.id);
+        if (!viewerEmployee || viewerEmployee.id !== employeeId) {
+            return res.status(403).json({ error: "Unauthorized to view this payslip" });
+        }
+    }
+    
+    let c = null;
+    try {
+        c = await db();
+        const [r] = await c.query("SELECT * FROM payroll_slips WHERE employee_id = ? AND id = ?", 
+            [employeeId, req.params.slip_id]);
+        res.json(r[0] || null);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Get payslip by ID
 router.get("/slip/:id", auth, async (req, res) => {
-    const c = await db();
-    const [r] = await c.query("SELECT * FROM payroll_slips WHERE id = ?", [req.params.id]);
-    c.end();
-    res.json(r[0] || null);
+    let c = null;
+    try {
+        c = await db();
+        const [r] = await c.query("SELECT * FROM payroll_slips WHERE id = ?", [req.params.id]);
+        
+        if (r.length === 0) {
+            return res.status(404).json({ error: "Payslip not found" });
+        }
+        
+        const payslip = r[0];
+        const userRole = (req.user.role || '').toLowerCase();
+        
+        // Check authorization: only self, HR, or Admin
+        if (userRole !== 'admin' && userRole !== 'hr') {
+            const viewerEmployee = await findEmployeeByUserId(req.user.id);
+            if (!viewerEmployee || viewerEmployee.id !== payslip.employee_id) {
+                return res.status(403).json({ error: "Unauthorized to view this payslip" });
+            }
+        }
+        
+        res.json(payslip);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // Generate PDF (placeholder)
@@ -478,17 +628,23 @@ const hrOrAdmin = require("../middleware/auth").hr;
 
 // ---- Salary Components CRUD ----
 router.get("/components", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT * FROM salary_components ORDER BY name ASC");
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT * FROM salary_components ORDER BY name ASC");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.post("/components", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         const { name, component_type,  calculation_type, value, percentage_of_code, taxable, prorated, sequence, notes } = req.body;
         if (!name || !component_type || !calculation_type) {
-            c.end();
             return res.status(400).json({ success: false, error: "Missing required fields" });
         }
         const [result] = await c.query("INSERT INTO salary_components SET ?", {
@@ -503,50 +659,61 @@ router.post("/components", auth, hrOrAdmin, async (req, res) => {
             notes: notes || null,
             created_by: req.user.id
         });
-        c.end();
         res.json({ id: result.insertId, success: true, message: "Salary component created successfully" });
     } catch (error) {
         console.error("Error creating salary component:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.put("/components/:id", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         await c.query("UPDATE salary_components SET ? WHERE id = ?", [req.body, req.params.id]);
-        c.end();
         res.json({ success: true, message: "Salary component updated successfully" });
     } catch (error) {
         console.error("Error updating salary component:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.delete("/components/:id", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         await c.query("DELETE FROM salary_components WHERE id = ?", [req.params.id]);
-        c.end();
         res.json({ success: true, message: "Salary component deleted successfully" });
     } catch (error) {
         console.error("Error deleting salary component:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // ---- Salary Structure Templates CRUD ----
 router.get("/templates", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT * FROM salary_structure_templates ORDER BY template_name ASC");
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT * FROM salary_structure_templates ORDER BY template_name ASC");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.post("/templates", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         const { template_name, description } = req.body;
         
         if (!template_name) {
-            c.end();
             return res.status(400).json({ success: false, error: "Template name is required" });
         }
         
@@ -555,50 +722,61 @@ router.post("/templates", auth, hrOrAdmin, async (req, res) => {
             description, 
             created_by: req.user.id 
         });
-        c.end();
         res.json({ id: result.insertId, success: true, message: "Salary template created successfully" });
     } catch (error) {
         console.error("Error creating salary template:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.put("/templates/:id", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         await c.query("UPDATE salary_structure_templates SET ? WHERE template_id = ?", [req.body, req.params.id]);
-        c.end();
         res.json({ success: true, message: "Salary template updated successfully" });
     } catch (error) {
         console.error("Error updating salary template:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.delete("/templates/:id", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         await c.query("DELETE FROM salary_structure_templates WHERE template_id = ?", [req.params.id]);
-        c.end();
         res.json({ success: true, message: "Salary template deleted successfully" });
     } catch (error) {
         console.error("Error deleting salary template:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
 // ---- Structure Composition CRUD ----
 router.get("/template/:templateId/components", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT sc.*, comp.name, comp.component_type FROM structure_composition sc JOIN salary_components comp ON sc.component_id = comp.id WHERE sc.template_id = ? ORDER BY sc.composition_id ASC", [req.params.templateId]);
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT sc.*, comp.name, comp.component_type FROM structure_composition sc JOIN salary_components comp ON sc.component_id = comp.id WHERE sc.template_id = ? ORDER BY sc.composition_id ASC", [req.params.templateId]);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.post("/template/:templateId/components", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         const { component_id, formula_or_value } = req.body;
         
         if (!component_id || !formula_or_value) {
-            c.end();
             return res.status(400).json({ success: false, error: "Component and formula/value are required" });
         }
         
@@ -608,40 +786,59 @@ router.post("/template/:templateId/components", auth, hrOrAdmin, async (req, res
             formula_or_value, 
             created_by: req.user.id 
         });
-        c.end();
         res.json({ id: result.insertId, success: true, message: "Component added to template successfully" });
     } catch (error) {
         console.error("Error adding component to template:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.put("/template/:templateId/components/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    await c.query("UPDATE structure_composition SET ? WHERE composition_id = ? AND template_id = ?", [req.body, req.params.id, req.params.templateId]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("UPDATE structure_composition SET ? WHERE composition_id = ? AND template_id = ?", [req.body, req.params.id, req.params.templateId]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.delete("/template/:templateId/components/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    await c.query("DELETE FROM structure_composition WHERE composition_id = ? AND template_id = ?", [req.params.id, req.params.templateId]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("DELETE FROM structure_composition WHERE composition_id = ? AND template_id = ?", [req.params.id, req.params.templateId]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // ---- Employee Salary Contracts CRUD ----
 router.get("/contracts", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT esc.*, e.EmployeeNumber, e.FullName, t.template_name FROM employee_salary_contracts esc JOIN employees e ON esc.employee_id = e.id JOIN salary_structure_templates t ON esc.template_id = t.template_id ORDER BY esc.effective_from DESC");
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT esc.*, e.EmployeeNumber, e.FullName, t.template_name FROM employee_salary_contracts esc JOIN employees e ON esc.employee_id = e.id JOIN salary_structure_templates t ON esc.template_id = t.template_id ORDER BY esc.effective_from DESC");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.post("/contracts", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         const { employee_id, template_id, annual_ctc, effective_from, status } = req.body;
         
         if (!employee_id || !template_id || !annual_ctc || !effective_from) {
-            c.end();
             return res.status(400).json({ success: false, error: "Missing required fields" });
         }
         
@@ -653,40 +850,59 @@ router.post("/contracts", auth, hrOrAdmin, async (req, res) => {
             status: status || 'Active', 
             created_by: req.user.id 
         });
-        c.end();
         res.json({ id: result.insertId, success: true, message: "Employee contract created successfully" });
     } catch (error) {
         console.error("Error creating employee contract:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.put("/contracts/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    await c.query("UPDATE employee_salary_contracts SET ? WHERE contract_id = ?", [req.body, req.params.id]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("UPDATE employee_salary_contracts SET ? WHERE contract_id = ?", [req.body, req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.delete("/contracts/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    await c.query("DELETE FROM employee_salary_contracts WHERE contract_id = ?", [req.params.id]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("DELETE FROM employee_salary_contracts WHERE contract_id = ?", [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // ---- Payroll Periods CRUD ----
 router.get("/periods", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT * FROM payroll_periods ORDER BY year DESC, month DESC");
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT * FROM payroll_periods ORDER BY year DESC, month DESC");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.post("/periods", auth, hrOrAdmin, async (req, res) => {
+    let c = null;
     try {
-        const c = await db();
+        c = await db();
         const { month, year, status } = req.body;
         
         if (!month || !year) {
-            c.end();
             return res.status(400).json({ success: false, error: "Month and year are required" });
         }
         
@@ -695,53 +911,85 @@ router.post("/periods", auth, hrOrAdmin, async (req, res) => {
             year, 
             status: status || 'Draft' 
         });
-        c.end();
         res.json({ id: result.insertId, success: true, message: "Payroll period created successfully" });
     } catch (error) {
         console.error("Error creating payroll period:", error);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 router.put("/periods/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    await c.query("UPDATE payroll_periods SET ? WHERE period_id = ?", [req.body, req.params.id]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("UPDATE payroll_periods SET ? WHERE period_id = ?", [req.body, req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.delete("/periods/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    await c.query("DELETE FROM payroll_periods WHERE period_id = ?", [req.params.id]);
-    c.end();
-    res.json({ success: true });
+    let c = null;
+    try {
+        c = await db();
+        await c.query("DELETE FROM payroll_periods WHERE period_id = ?", [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // ---- Payslips (Read Only) ----
 router.get("/payslips", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT ps.*, e.EmployeeNumber, e.FullName FROM payslips ps JOIN employees e ON ps.employee_id = e.id ORDER BY ps.generated_at DESC");
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT ps.*, e.EmployeeNumber, e.FullName FROM payslips ps JOIN employees e ON ps.employee_id = e.id ORDER BY ps.generated_at DESC");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 router.get("/payslips/:id", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT ps.*, e.EmployeeNumber, e.FullName FROM payslips ps JOIN employees e ON ps.employee_id = e.id WHERE ps.payslip_id = ?", [req.params.id]);
-    c.end();
-    res.json(rows[0] || null);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT ps.*, e.EmployeeNumber, e.FullName FROM payslips ps JOIN employees e ON ps.employee_id = e.id WHERE ps.payslip_id = ?", [req.params.id]);
+        res.json(rows[0] || null);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // ---- Payslip Items (Read Only) ----
 router.get("/payslips/:id/items", auth, hrOrAdmin, async (req, res) => {
-    const c = await db();
-    const [rows] = await c.query("SELECT pi.*, sc.name, sc.component_type FROM payslip_items pi JOIN salary_components sc ON pi.component_id = sc.id WHERE pi.payslip_id = ?", [req.params.id]);
-    c.end();
-    res.json(rows);
+    let c = null;
+    try {
+        c = await db();
+        const [rows] = await c.query("SELECT pi.*, sc.name, sc.component_type FROM payslip_items pi JOIN salary_components sc ON pi.component_id = sc.id WHERE pi.payslip_id = ?", [req.params.id]);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (c) await c.end();
+    }
 });
 
 // ---- Payroll Run Endpoint ----
 router.post("/run", auth, hrOrAdmin, async (req, res) => {
     const { period_id } = req.body;
-    const c = await db();
+    let c = null;
     try {
+        c = await db();
         // Get payroll period
         const [periodRows] = await c.query("SELECT * FROM payroll_periods WHERE period_id = ?", [period_id]);
         if (!periodRows.length) throw new Error("Payroll period not found");
@@ -811,11 +1059,11 @@ router.post("/run", auth, hrOrAdmin, async (req, res) => {
             }
             processed++;
         }
-        c.end();
         res.json({ success: true, processed });
     } catch (err) {
-        c.end();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (c) await c.end();
     }
 });
 
