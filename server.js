@@ -60,6 +60,7 @@ const adminTimesheetRoutes = require("./routes/admin-timesheet.routes");
 const projectRoutes = require("./routes/projects.routes");
 const assetRoutes = require("./routes/assets.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const emailRoutes = require("./routes/email.routes");
 
 // Import notification service
 const timesheetNotificationService = require("./utils/timesheet-notification.service");
@@ -70,9 +71,9 @@ const upload = multer({ dest: "uploads/" });
 
 // CORS Configuration for Production
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
 console.log('🌐 Allowed CORS origins:', allowedOrigins);
 
@@ -80,9 +81,9 @@ console.log('🌐 Allowed CORS origins:', allowedOrigins);
 app.use(bodyParser.json());
 
 app.use(
-  cors({
-    origin: true,
-  })
+    cors({
+        origin: true,
+    })
 );
 
 // Serve static files from public/www folder
@@ -119,7 +120,7 @@ async function initializeDatabase() {
 
     try {
         const schemaPath = path.join(__dirname, 'schema.sql');
-        
+
         if (!fs.existsSync(schemaPath)) {
             console.warn('⚠️ schema.sql not found, skipping file-based initialization');
             await conn.query(`CREATE DATABASE IF NOT EXISTS hrms_db_new`);
@@ -128,12 +129,12 @@ async function initializeDatabase() {
         } else {
             console.log('📄 Reading schema from schema.sql...');
             const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
-            
+
             await conn.query(`CREATE DATABASE IF NOT EXISTS hrms_db_new`);
             console.log("✅ Database hrms_db_new created/verified");
             await conn.query(`USE hrms_db_new`);
             console.log("✅ Using database hrms_db_new");
-            
+
             const sqlWithoutComments = schemaSQL
                 .split('\n')
                 .map(line => {
@@ -142,7 +143,7 @@ async function initializeDatabase() {
                     return line;
                 })
                 .join('\n');
-            
+
             const statements = sqlWithoutComments
                 .split(';')
                 .map(s => s.trim())
@@ -153,12 +154,12 @@ async function initializeDatabase() {
                     if (upper.startsWith('USE ')) return false;
                     return true;
                 });
-            
+
             console.log(`📊 Executing ${statements.length} SQL statements...`);
-            
+
             let successCount = 0;
             let skipCount = 0;
-            
+
             for (let i = 0; i < statements.length; i++) {
                 const statement = statements[i];
                 try {
@@ -169,7 +170,7 @@ async function initializeDatabase() {
                         if (match) console.log(`  ✓ Created table: ${match[1]}`);
                     }
                 } catch (err) {
-                    if (err.message.includes('Duplicate') || 
+                    if (err.message.includes('Duplicate') ||
                         err.message.includes('already exists') ||
                         err.message.includes('Multiple primary key')) {
                         skipCount++;
@@ -181,7 +182,7 @@ async function initializeDatabase() {
                     }
                 }
             }
-            
+
             console.log(`✅ Database initialization complete: ${successCount} executed, ${skipCount} skipped`);
         }
 
@@ -335,6 +336,9 @@ app.use("/api/assets", assetRoutes);
 // Dashboard & Analytics Routes
 app.use("/api/dashboard", dashboardRoutes);
 
+// Email Routes
+app.use("/", emailRoutes);
+
 /* ============ SWAGGER API DOCUMENTATION ============ */
 
 // Serve Swagger UI
@@ -404,14 +408,14 @@ app.get("/api/health", (req, res) => {
 
         const PORT = process.env.PORT || 3000;
         const ENV = process.env.NODE_ENV || 'development';
-        
+
         // Start timesheet notification service
         timesheetNotificationService.start();
         console.log("✅ Timesheet notification service started");
-        
+
         // Start compliance checker service
         complianceChecker.start();
-        
+
         app.listen(PORT, () => {
             console.log(`\n╔══════════════════════════════════════════════╗`);
             console.log(`║     HRMS API Server (Modular)                ║`);

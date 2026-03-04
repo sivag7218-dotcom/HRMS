@@ -44,11 +44,11 @@ router.post("/", auth, hr, async (req, res) => {
 
         const [result] = await c.query("INSERT INTO candidates SET ?", candidateData);
         c.end();
-        
-        res.json({ 
+
+        res.json({
             success: true,
-            candidate_id: result.insertId, 
-            message: "Candidate created successfully. Ready for pre-onboarding." 
+            candidate_id: result.insertId,
+            message: "Candidate created successfully. Ready for pre-onboarding."
         });
     } catch (error) {
         c.end();
@@ -61,7 +61,7 @@ router.get("/", auth, hr, async (req, res) => {
     const c = await db();
     try {
         const { status, joining_date_from, joining_date_to, department_id } = req.query;
-        
+
         let query = `
             SELECT c.*, 
                    d.name as department_name, 
@@ -76,7 +76,7 @@ router.get("/", auth, hr, async (req, res) => {
             WHERE 1=1
         `;
         const params = [];
-        
+
         if (status) {
             query += " AND c.status = ?";
             params.push(status);
@@ -93,12 +93,12 @@ router.get("/", auth, hr, async (req, res) => {
             query += " AND c.department_id = ?";
             params.push(department_id);
         }
-        
+
         query += " ORDER BY c.created_at DESC";
-        
+
         const [candidates] = await c.query(query, params);
         c.end();
-        
+
         res.json(candidates);
     } catch (error) {
         c.end();
@@ -125,18 +125,18 @@ router.get("/:id", auth, async (req, res) => {
             LEFT JOIN employees hr ON c.hr_coordinator_id = hr.id
             WHERE c.id = ?
         `, [req.params.id]);
-        
+
         if (candidates.length === 0) {
             c.end();
             return res.status(404).json({ error: "Candidate not found" });
         }
-        
+
         // Get documents
         const [documents] = await c.query(
             "SELECT * FROM candidate_documents WHERE candidate_id = ?",
             [req.params.id]
         );
-        
+
         // Get task progress
         const [tasks] = await c.query(`
             SELECT ctp.*, pt.task_name, pt.description, pt.task_category, pt.is_mandatory
@@ -145,14 +145,14 @@ router.get("/:id", auth, async (req, res) => {
             WHERE ctp.candidate_id = ?
             ORDER BY pt.task_order
         `, [req.params.id]);
-        
+
         c.end();
-        
+
         res.json({
             candidate: candidates[0],
             documents,
             tasks,
-            completion_percentage: tasks.length > 0 
+            completion_percentage: tasks.length > 0
                 ? (tasks.filter(t => t.status === 'completed').length / tasks.length * 100).toFixed(2)
                 : 0
         });
@@ -170,10 +170,10 @@ router.put("/:id", auth, hr, async (req, res) => {
         delete updates.id;
         delete updates.created_at;
         delete updates.created_by;
-        
+
         await c.query("UPDATE candidates SET ? WHERE id = ?", [updates, req.params.id]);
         c.end();
-        
+
         res.json({ success: true, message: "Candidate updated successfully" });
     } catch (error) {
         c.end();
@@ -192,7 +192,7 @@ router.post("/:id/send-offer", auth, hr, async (req, res) => {
                 status = 'offered'
             WHERE id = ?
         `, [req.params.id]);
-        
+
         c.end();
         res.json({ success: true, message: "Offer letter sent" });
     } catch (error) {
@@ -212,19 +212,19 @@ router.post("/:id/accept-offer", async (req, res) => {
                 status = 'offer_accepted'
             WHERE id = ?
         `, [req.params.id]);
-        
+
         // Auto-assign pre-onboarding tasks
         const [tasks] = await c.query(
             "SELECT id FROM preonboarding_tasks WHERE auto_assign = 1 ORDER BY task_order"
         );
-        
+
         for (const task of tasks) {
             await c.query(`
                 INSERT INTO candidate_task_progress (candidate_id, task_id, status, assigned_date)
                 VALUES (?, ?, 'not_started', CURDATE())
             `, [req.params.id, task.id]);
         }
-        
+
         c.end();
         res.json({ success: true, message: "Offer accepted, pre-onboarding tasks assigned" });
     } catch (error) {
@@ -245,7 +245,7 @@ router.post("/:id/decline-offer", async (req, res) => {
                 status = 'offer_declined'
             WHERE id = ?
         `, [req.body.reason, req.params.id]);
-        
+
         c.end();
         res.json({ success: true, message: "Offer declined" });
     } catch (error) {
@@ -269,9 +269,9 @@ router.post("/:id/documents", upload.single("file"), async (req, res) => {
             mime_type: req.file.mimetype,
             required: req.body.required || 1
         };
-        
+
         await c.query("INSERT INTO candidate_documents SET ?", docData);
-        
+
         // Update candidate documents status
         await c.query(`
             UPDATE candidates SET 
@@ -282,7 +282,7 @@ router.post("/:id/documents", upload.single("file"), async (req, res) => {
                 END
             WHERE id = ?
         `, [req.params.id]);
-        
+
         c.end();
         res.json({ success: true, message: "Document uploaded successfully" });
     } catch (error) {
@@ -303,7 +303,7 @@ router.put("/documents/:docId/verify", auth, hr, async (req, res) => {
                 verification_remarks = ?
             WHERE id = ?
         `, [req.user.id, req.body.remarks, req.params.docId]);
-        
+
         c.end();
         res.json({ success: true, message: "Document verified" });
     } catch (error) {
@@ -325,7 +325,7 @@ router.post("/:id/bgv/initiate", auth, hr, async (req, res) => {
                 status = 'bgv_initiated'
             WHERE id = ?
         `, [req.params.id]);
-        
+
         c.end();
         res.json({ success: true, message: "BGV initiated" });
     } catch (error) {
@@ -342,15 +342,15 @@ router.put("/:id/bgv/status", auth, hr, async (req, res) => {
             bgv_status: req.body.bgv_status,
             bgv_remarks: req.body.remarks
         };
-        
+
         if (req.body.bgv_status === 'completed') {
             updates.bgv_completed_date = new Date();
             updates.status = 'bgv_completed';
         }
-        
+
         await c.query("UPDATE candidates SET ? WHERE id = ?", [updates, req.params.id]);
         c.end();
-        
+
         res.json({ success: true, message: "BGV status updated" });
     } catch (error) {
         c.end();
@@ -368,15 +368,15 @@ router.put("/tasks/:taskProgressId", async (req, res) => {
             status: req.body.status,
             remarks: req.body.remarks
         };
-        
+
         if (req.body.status === 'completed') {
             updates.completed_date = new Date();
             updates.completed_by = req.user?.id;
         }
-        
-        await c.query("UPDATE candidate_task_progress SET ? WHERE id = ?", 
+
+        await c.query("UPDATE candidate_task_progress SET ? WHERE id = ?",
             [updates, req.params.taskProgressId]);
-        
+
         c.end();
         res.json({ success: true, message: "Task updated" });
     } catch (error) {
@@ -392,14 +392,14 @@ router.post("/:id/convert-to-employee", auth, hr, async (req, res) => {
     try {
         // Get candidate details
         const [candidates] = await c.query("SELECT * FROM candidates WHERE id = ?", [req.params.id]);
-        
+
         if (candidates.length === 0) {
             c.end();
             return res.status(404).json({ error: "Candidate not found" });
         }
-        
+
         const candidate = candidates[0];
-        
+
         // Create employee
         const empData = {
             EmployeeNumber: req.body.employee_number || `EMP${Date.now()}`,
@@ -419,9 +419,9 @@ router.post("/:id/convert-to-employee", auth, hr, async (req, res) => {
             EmploymentStatus: 'Active',
             lpa: candidate.offered_ctc
         };
-        
+
         const [empResult] = await c.query("INSERT INTO employees SET ?", empData);
-        
+
         // Update candidate
         await c.query(`
             UPDATE candidates SET 
@@ -431,7 +431,7 @@ router.post("/:id/convert-to-employee", auth, hr, async (req, res) => {
                 status = 'joined'
             WHERE id = ?
         `, [empResult.insertId, req.params.id]);
-        
+
         // Create user account
         const userData = {
             username: candidate.email.split('@')[0],
@@ -439,15 +439,15 @@ router.post("/:id/convert-to-employee", auth, hr, async (req, res) => {
             full_name: candidate.full_name,
             employee_id: empResult.insertId
         };
-        
+
         await c.query("INSERT INTO users SET ?", userData);
-        
+
         c.end();
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             employee_id: empResult.insertId,
-            message: "Candidate converted to employee successfully" 
+            message: "Candidate converted to employee successfully"
         });
     } catch (error) {
         c.end();
@@ -473,21 +473,21 @@ router.post("/:id/start-preonboarding", auth, hr, async (req, res) => {
             LEFT JOIN locations l ON c.location_id = l.id
             WHERE c.id = ?
         `, [req.params.id]);
-        
+
         if (candidate.length === 0) {
             c.end();
             return res.status(404).json({ error: "Candidate not found" });
         }
-        
+
         // Update status to documents_pending
         await c.query(
             "UPDATE candidates SET status = 'documents_pending' WHERE id = ?",
             [req.params.id]
         );
-        
+
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Pre-onboarding started",
             candidate: candidate[0]
         });
@@ -509,23 +509,28 @@ router.post("/:id/create-offer", auth, hr, async (req, res) => {
             location_id,
             reporting_manager_id,
             joining_date,
-            
+
             // Compensation
             offered_ctc,
             annual_salary,
             salary_breakup,
-            
+
             // Offer Details
             offer_validity_date,
             probation_period,
             notice_period,
             work_mode,
-            
+
             // Additional
             special_terms,
             benefits
         } = req.body;
-        
+
+        // ✅ FIX: Detect whether param is a numeric id or a string candidate_id (e.g. 'CAN1772533410481')
+        const candidateParam = req.params.id;
+        const isNumericId = /^\d+$/.test(String(candidateParam));
+        const whereField = isNumericId ? 'id' : 'candidate_id';
+
         // Update candidate with offer details
         await c.query(`
             UPDATE candidates SET 
@@ -535,17 +540,32 @@ router.post("/:id/create-offer", auth, hr, async (req, res) => {
                 location_id = ?,
                 reporting_manager_id = ?,
                 joining_date = ?,
-                offered_ctc = ?
-            WHERE id = ?
-        `, [position, designation_id, department_id, location_id, 
-            reporting_manager_id, joining_date, offered_ctc, req.params.id]);
-        
+                offered_ctc = ?,
+                status = 'offered'
+            WHERE ${whereField} = ?
+        `, [position, designation_id, department_id, location_id,
+            reporting_manager_id, joining_date, offered_ctc, candidateParam]);
+
+        // ✅ Resolve the numeric id for the FK in candidate_communications
+        let numericId = candidateParam;
+        if (!isNumericId) {
+            const [rows] = await c.query(
+                'SELECT id FROM candidates WHERE candidate_id = ? LIMIT 1',
+                [candidateParam]
+            );
+            if (rows.length === 0) {
+                c.end();
+                return res.status(404).json({ error: `Candidate '${candidateParam}' not found` });
+            }
+            numericId = rows[0].id;
+        }
+
         // Store additional offer details in communications log
         await c.query(`
             INSERT INTO candidate_communications 
             (candidate_id, communication_type, subject, message, communicated_by)
             VALUES (?, 'email', 'Offer Letter Details', ?, ?)
-        `, [req.params.id, JSON.stringify({
+        `, [numericId, JSON.stringify({
             annual_salary,
             salary_breakup,
             offer_validity_date,
@@ -555,11 +575,11 @@ router.post("/:id/create-offer", auth, hr, async (req, res) => {
             special_terms,
             benefits
         }), req.user.id]);
-        
+
         c.end();
-        res.json({ 
-            success: true, 
-            message: "Offer details saved. Ready to preview and send." 
+        res.json({
+            success: true,
+            message: "Offer details saved. Ready to preview and send."
         });
     } catch (error) {
         c.end();
@@ -571,6 +591,11 @@ router.post("/:id/create-offer", auth, hr, async (req, res) => {
 router.post("/:id/preview-send-offer", auth, hr, async (req, res) => {
     const c = await db();
     try {
+        // ✅ FIX: Handle both numeric id and string candidate_id (e.g. 'CAN...')
+        const candidateParam = req.params.id;
+        const isNumericId = /^\d+$/.test(String(candidateParam));
+        const whereField = isNumericId ? 'c.id' : 'c.candidate_id';
+
         // Get complete candidate and offer details
         const [candidate] = await c.query(`
             SELECT c.*, 
@@ -583,21 +608,24 @@ router.post("/:id/preview-send-offer", auth, hr, async (req, res) => {
             LEFT JOIN designations des ON c.designation_id = des.id
             LEFT JOIN locations l ON c.location_id = l.id
             LEFT JOIN employees m ON c.reporting_manager_id = m.id
-            WHERE c.id = ?
-        `, [req.params.id]);
-        
+            WHERE ${whereField} = ?
+        `, [candidateParam]);
+
         if (candidate.length === 0) {
             c.end();
             return res.status(404).json({ error: "Candidate not found" });
         }
-        
+
+        // Resolve numeric id for FK queries
+        const numericId = candidate[0].id;
+
         // Get offer details from communications
         const [offerDetails] = await c.query(`
             SELECT message FROM candidate_communications 
             WHERE candidate_id = ? AND subject = 'Offer Letter Details'
             ORDER BY communication_date DESC LIMIT 1
-        `, [req.params.id]);
-        
+        `, [numericId]);
+
         // Send offer letter via email (mock)
         await c.query(`
             UPDATE candidates SET 
@@ -605,18 +633,18 @@ router.post("/:id/preview-send-offer", auth, hr, async (req, res) => {
                 offer_letter_sent_date = CURDATE(),
                 status = 'offered'
             WHERE id = ?
-        `, [req.params.id]);
-        
+        `, [numericId]);
+
         // Log email sent
         await c.query(`
             INSERT INTO candidate_communications 
             (candidate_id, communication_type, subject, message, communicated_by)
             VALUES (?, 'email', 'Offer Letter Sent', 'Offer letter sent to candidate email', ?)
-        `, [req.params.id, req.user.id]);
-        
+        `, [numericId, req.user.id]);
+
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Offer letter sent to candidate email",
             preview: {
                 candidate: candidate[0],
@@ -646,19 +674,19 @@ router.get("/:id/view-offer/:token", async (req, res) => {
             LEFT JOIN locations l ON c.location_id = l.id
             WHERE c.id = ? AND c.candidate_id = ?
         `, [req.params.id, req.params.token]);
-        
+
         if (candidate.length === 0) {
             c.end();
             return res.status(404).json({ error: "Invalid offer link" });
         }
-        
+
         // Get offer details
         const [offerDetails] = await c.query(`
             SELECT message FROM candidate_communications 
             WHERE candidate_id = ? AND subject = 'Offer Letter Details'
             ORDER BY communication_date DESC LIMIT 1
         `, [req.params.id]);
-        
+
         c.end();
         res.json({
             candidate: candidate[0],
@@ -680,12 +708,12 @@ router.post("/:id/approve-offer/:token", async (req, res) => {
             "SELECT id FROM candidates WHERE id = ? AND candidate_id = ?",
             [req.params.id, req.params.token]
         );
-        
+
         if (candidate.length === 0) {
             c.end();
             return res.status(404).json({ error: "Invalid link" });
         }
-        
+
         // Update to approved
         await c.query(`
             UPDATE candidates SET 
@@ -694,12 +722,12 @@ router.post("/:id/approve-offer/:token", async (req, res) => {
                 status = 'offer_accepted'
             WHERE id = ?
         `, [req.params.id]);
-        
+
         // Auto-assign pre-onboarding tasks
         const [tasks] = await c.query(
             "SELECT id FROM preonboarding_tasks WHERE auto_assign = 1 ORDER BY task_order"
         );
-        
+
         for (const task of tasks) {
             await c.query(`
                 INSERT IGNORE INTO candidate_task_progress 
@@ -707,10 +735,10 @@ router.post("/:id/approve-offer/:token", async (req, res) => {
                 VALUES (?, ?, 'not_started', CURDATE())
             `, [req.params.id, task.id]);
         }
-        
+
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Offer approved successfully! Pre-onboarding tasks assigned.",
             status: "Approved"
         });
@@ -729,12 +757,12 @@ router.post("/:id/reject-offer/:token", async (req, res) => {
             "SELECT id FROM candidates WHERE id = ? AND candidate_id = ?",
             [req.params.id, req.params.token]
         );
-        
+
         if (candidate.length === 0) {
             c.end();
             return res.status(404).json({ error: "Invalid link" });
         }
-        
+
         // Update to rejected
         await c.query(`
             UPDATE candidates SET 
@@ -744,10 +772,10 @@ router.post("/:id/reject-offer/:token", async (req, res) => {
                 status = 'offer_declined'
             WHERE id = ?
         `, [req.body.reason || 'No reason provided', req.params.id]);
-        
+
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Offer rejected. Thank you for your time.",
             status: "Rejected"
         });
@@ -764,24 +792,24 @@ router.post("/:id/update-status", auth, hr, async (req, res) => {
     const c = await db();
     try {
         const { status, remarks } = req.body;
-        
+
         // Validate status
         const validStatuses = [
-            'offered', 'offer_accepted', 'offer_declined', 
-            'documents_pending', 'bgv_initiated', 'bgv_completed', 
+            'offered', 'offer_accepted', 'offer_declined',
+            'documents_pending', 'bgv_initiated', 'bgv_completed',
             'ready_to_join', 'joined', 'dropped_out'
         ];
-        
+
         if (!validStatuses.includes(status)) {
             c.end();
             return res.status(400).json({ error: "Invalid status" });
         }
-        
+
         await c.query(
             "UPDATE candidates SET status = ? WHERE id = ?",
             [status, req.params.id]
         );
-        
+
         // Log status change
         if (remarks) {
             await c.query(`
@@ -790,10 +818,10 @@ router.post("/:id/update-status", auth, hr, async (req, res) => {
                 VALUES (?, 'other', 'Status Update', ?, ?)
             `, [req.params.id, `Status changed to: ${status}. ${remarks}`, req.user.id]);
         }
-        
+
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: `Candidate status updated to ${status}`,
             status
         });
@@ -812,24 +840,24 @@ router.post("/:id/hire-as-employee", auth, hr, async (req, res) => {
             SELECT COUNT(*) as pending FROM candidate_documents 
             WHERE candidate_id = ? AND required = 1 AND verified = 0
         `, [req.params.id]);
-        
+
         if (pendingDocs[0].pending > 0) {
             c.end();
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: "Cannot hire: Pending document verification",
                 pending_documents: pendingDocs[0].pending
             });
         }
-        
+
         // Update status to ready_to_join
         await c.query(
             "UPDATE candidates SET status = 'ready_to_join' WHERE id = ?",
             [req.params.id]
         );
-        
+
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Candidate marked as 'Ready to Join'. Onboarding can now be initiated.",
             next_step: "Convert to employee on joining date"
         });
@@ -844,17 +872,17 @@ router.post("/:id/put-on-hold", auth, hr, async (req, res) => {
     const c = await db();
     try {
         const { reason } = req.body;
-        
+
         await c.query(`
             INSERT INTO candidate_communications 
             (candidate_id, communication_type, subject, message, communicated_by)
             VALUES (?, 'other', 'Candidate On Hold', ?, ?)
         `, [req.params.id, reason || 'Candidate put on hold', req.user.id]);
-        
+
         // Keep current status but flag as on hold
         c.end();
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Candidate put on hold",
             action: "Manual follow-up required"
         });
@@ -881,7 +909,7 @@ router.get("/stats/dashboard", auth, hr, async (req, res) => {
             FROM candidates
             WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
         `);
-        
+
         c.end();
         res.json(stats[0]);
     } catch (error) {

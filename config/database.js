@@ -27,8 +27,8 @@ const DB = {
     database: process.env.DB_NAME || "hrms_db_new",
     // Connection Pool Settings
     waitForConnections: true,
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '10', 10),
-    queueLimit: parseInt(process.env.DB_QUEUE_LIMIT || '0', 10),
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '25', 10),
+    queueLimit: parseInt(process.env.DB_QUEUE_LIMIT || '50', 10),
     // Timeouts (in milliseconds)
     connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10), // 10s
     acquireTimeout: parseInt(process.env.DB_ACQUIRE_TIMEOUT || '10000', 10),  // 10s
@@ -67,31 +67,31 @@ let __isShuttingDown = false;
 function getPool() {
     if (!__pool && !__isShuttingDown) {
         __pool = mysql.createPool(DB);
-        
+
         // Log pool creation
         console.log(`[DB] Connection pool created (limit: ${DB.connectionLimit})`);
         console.log(`[DB] Using database: ${DB.database}`);
-        
+
         // Set up pool event listeners for monitoring
         __pool.on('acquire', (connection) => {
             // Uncomment for detailed connection tracking
             // console.log(`[DB] Connection ${connection.threadId} acquired`);
         });
-        
+
         __pool.on('connection', (connection) => {
             console.log(`[DB] New connection ${connection.threadId} established`);
         });
-        
+
         __pool.on('enqueue', () => {
             console.warn(`[DB] Waiting for available connection (pool full)`);
         });
-        
+
         __pool.on('release', (connection) => {
             // Uncomment for detailed connection tracking
             // console.log(`[DB] Connection ${connection.threadId} released`);
         });
     }
-    
+
     return __pool;
 }
 
@@ -113,27 +113,27 @@ async function db() {
 
     try {
         conn = await pool.getConnection();
-        
+
         // Override conn.end() to call release() instead
         // This prevents accidentally closing pooled connections
         if (conn && typeof conn.release === 'function') {
             const originalEnd = conn.end;
             conn.end = async () => {
-                try { 
-                    conn.release(); 
-                } catch (err) { 
+                try {
+                    conn.release();
+                } catch (err) {
                     console.error('[DB] Error releasing connection:', err.message);
                 }
             };
-            
+
             // Store original end for emergency use
             conn._originalEnd = originalEnd;
         }
-        
+
         return conn;
     } catch (error) {
         console.error('[DB] Error acquiring connection from pool:', error.message);
-        
+
         // If connection was acquired but error occurred, release it
         if (conn) {
             try {
@@ -142,7 +142,7 @@ async function db() {
                 console.error('[DB] Error releasing connection after error:', releaseError.message);
             }
         }
-        
+
         throw error;
     }
 }
@@ -157,7 +157,7 @@ async function db() {
  */
 db.query = async (sql, params) => {
     const pool = getPool();
-    
+
     try {
         const [rows, fields] = await pool.query(sql, params);
         return [rows, fields];
@@ -175,10 +175,30 @@ db.query = async (sql, params) => {
  * @returns {Promise<mysql.PoolConnection>}
  */
 db.getConnection = async () => {
+    if (__isShuttingDown) {
+        throw new Error('Database pool is shutting down');
+    }
+
     const pool = getPool();
-    
+    let conn = null;
+
     try {
-        return await pool.getConnection();
+        conn = await pool.getConnection();
+
+        // Override conn.end() to call release() instead
+        if (conn && typeof conn.release === 'function') {
+            const originalEnd = conn.end;
+            conn.end = async () => {
+                try {
+                    conn.release();
+                } catch (err) {
+                    console.error('[DB] Error releasing connection:', err.message);
+                }
+            };
+            conn._originalEnd = originalEnd;
+        }
+
+        return conn;
     } catch (error) {
         console.error('[DB] Error getting connection:', error.message);
         throw error;
@@ -193,12 +213,12 @@ db.getConnection = async () => {
  */
 db.transaction = async (callback) => {
     const conn = await db.getConnection();
-    
+
     try {
         await conn.beginTransaction();
-        
+
         const result = await callback(conn);
-        
+
         await conn.commit();
         return result;
     } catch (error) {
@@ -220,7 +240,7 @@ db.healthCheck = async () => {
     try {
         const pool = getPool();
         const [rows] = await pool.query('SELECT 1 as healthy');
-        
+
         return {
             healthy: rows[0]?.healthy === 1,
             timestamp: new Date().toISOString(),
@@ -248,9 +268,9 @@ db.shutdown = async () => {
         console.log('[DB] Shutdown already in progress');
         return;
     }
-    
+
     __isShuttingDown = true;
-    
+
     if (__pool) {
         try {
             console.log('[DB] Closing connection pool...');
@@ -274,9 +294,9 @@ db.getPoolStats = () => {
     if (!__pool) {
         return { error: 'Pool not initialized' };
     }
-    
+
     const pool = __pool.pool;
-    
+
     return {
         allConnections: pool._allConnections?.length || 0,
         freeConnections: pool._freeConnections?.length || 0,
