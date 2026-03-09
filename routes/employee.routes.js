@@ -9,11 +9,11 @@ const multer = require("multer");
 const path = require("path");
 const { db } = require("../config/database");
 const { auth, admin, hr, manager } = require("../middleware/auth");
-const { 
-  findEmployeeByUserId, 
-  filterEmployeeUpdateData, 
-  canViewEmployee, 
-  maskSensitiveData 
+const {
+  findEmployeeByUserId,
+  filterEmployeeUpdateData,
+  canViewEmployee,
+  maskSensitiveData
 } = require("../utils/helpers");
 
 // Configure multer for profile image upload
@@ -50,7 +50,16 @@ const uploadProfileImage = multer({
 // Get all employees with pagination & filters
 router.get("/", auth, async (req, res) => {
   const c = await db();
-  const [r] = await c.query("SELECT * FROM employees ORDER BY id DESC");
+  const [r] = await c.query(`
+    SELECT 
+        e.*, 
+        d.name as department_name, 
+        des.name as designation_name 
+    FROM employees e
+    LEFT JOIN departments d ON e.DepartmentId = d.id
+    LEFT JOIN designations des ON e.DesignationId = des.id
+    ORDER BY e.id DESC
+  `);
   c.end();
   res.json(r);
 });
@@ -195,18 +204,18 @@ router.get("/:id", auth, async (req, res) => {
 // Get detailed employee information with all relationships
 router.get("/:id/details", auth, async (req, res) => {
   let c = null;
-  
+
   try {
     // SECURITY: Check if user is authorized to view this employee
     const requestedEmployeeId = parseInt(req.params.id);
     const canView = await canViewEmployee(req.user.id, requestedEmployeeId, req.user.role);
-    
+
     if (!canView) {
-      return res.status(403).json({ 
-        error: "Unauthorized to view this employee's details" 
+      return res.status(403).json({
+        error: "Unauthorized to view this employee's details"
       });
     }
-    
+
     c = await db();
 
     // Get employee with all master data
@@ -426,27 +435,27 @@ router.get("/profile/me", auth, async (req, res) => {
 // Update my profile
 router.put("/profile/me", auth, async (req, res) => {
   let c = null;
-  
+
   try {
     const emp = await findEmployeeByUserId(req.user.id);
     if (!emp) return res.status(404).json({ error: "Employee not found" });
 
     // SECURITY: Filter update data to only allow safe fields for self-update
     const updateData = filterEmployeeUpdateData(req.body, req.user.role, true);
-    
+
     // If no valid fields to update, return error
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "No valid fields to update",
-        hint: "You can only update: PhoneNumber, PersonalEmail, current_address fields, MaritalStatus, BloodGroup" 
+        hint: "You can only update: PhoneNumber, PersonalEmail, current_address fields, MaritalStatus, BloodGroup"
       });
     }
 
     c = await db();
     await c.query("UPDATE employees SET ? WHERE id = ?", [updateData, emp.id]);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: "Profile updated successfully",
       updatedFields: Object.keys(updateData)
     });
