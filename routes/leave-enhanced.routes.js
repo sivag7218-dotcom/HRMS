@@ -154,18 +154,28 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
     const c = await db();
     await c.beginTransaction();
 
-    // Update plan
+    // Fetch existing plan to preserve values missing in partial updates (e.g. from simpler allocation UI)
+    const [existingPlan] = await c.query('SELECT * FROM leave_plans WHERE id = ?', [req.params.id]);
+    if (existingPlan.length === 0) {
+      await c.rollback();
+      c.end();
+      return res.status(404).json({ error: "Leave plan not found" });
+    }
+
+    const plan = existingPlan[0];
+
+    // Update plan - Use provided values or keep existing
     await c.query(
       `UPDATE leave_plans 
              SET name = ?, description = ?, leave_year_start_month = ?, 
                  leave_year_start_day = ?, is_active = ?
              WHERE id = ?`,
       [
-        name,
-        description,
-        leave_year_start_month,
-        leave_year_start_day,
-        is_active,
+        name || plan.name,
+        description !== undefined ? description : plan.description,
+        leave_year_start_month || plan.leave_year_start_month || 1,
+        leave_year_start_day || plan.leave_year_start_day || 1,
+        is_active !== undefined ? is_active : plan.is_active,
         req.params.id,
       ],
     );
@@ -190,6 +200,55 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
             allocation.prorate_on_joining !== false ? 1 : 0,
           ],
         );
+      }
+
+      // SYNC: Update existing leave balances for all employees using this plan
+      const currentYear = new Date().getFullYear();
+      const yearsToSync = [currentYear, currentYear + 1];
+
+      const [assignedEmployees] = await c.query(
+        `SELECT id FROM employees WHERE leave_plan_id = ?`,
+        [req.params.id]
+      );
+
+      console.log(`[LEAVE SYNC] Starting batch sync for ${assignedEmployees.length} employees for years ${yearsToSync.join(', ')}`);
+
+      if (assignedEmployees.length > 0 && allocations.length > 0) {
+        for (const year of yearsToSync) {
+          // We build a single query to update/insert all allocations for all assigned employees for this year
+          // Using INSERT ... ON DUPLICATE KEY UPDATE
+          const values = [];
+          for (const emp of assignedEmployees) {
+            for (const alloc of allocations) {
+              const daysAllocated = Number(alloc.days_allocated) || 0;
+              values.push([
+                emp.id,
+                alloc.leave_type_id,
+                year,
+                daysAllocated,
+                0, // used_days (default if new)
+                daysAllocated // available_days (default if new)
+              ]);
+            }
+          }
+
+          // Chunk the insertions if they are too large (e.g., > 1000 records per query)
+          const chunkSize = 500;
+          for (let i = 0; i < values.length; i += chunkSize) {
+            const chunk = values.slice(i, i + chunkSize);
+            await c.query(
+              `INSERT INTO employee_leave_balances 
+               (employee_id, leave_type_id, leave_year, allocated_days, used_days, available_days)
+               VALUES ?
+               ON DUPLICATE KEY UPDATE 
+               available_days = VALUES(allocated_days) + COALESCE(carry_forward_days, 0) - COALESCE(used_days, 0),
+               allocated_days = VALUES(allocated_days)`,
+              [chunk]
+            );
+            console.log(`[LEAVE SYNC] Updated chunk of ${chunk.length} balances for year ${year}`);
+          }
+        }
+        console.log(`[LEAVE SYNC] Batch sync completed successfully for Plan ID: ${req.params.id}`);
       }
     }
 
@@ -505,8 +564,8 @@ router.get("/balance", auth, async (req, res) => {
     const emp = await findEmployeeByUserId(req.user.id);
     if (!emp) return res.status(404).json({ error: "Employee not found" });
 
-    const { year } = req.query;
-    const leaveYear = year || new Date().getFullYear();
+    const { year, leave_year } = req.query;
+    const leaveYear = year || leave_year || new Date().getFullYear();
 
     const c = await db();
     const [balances] = await c.query(
@@ -537,8 +596,8 @@ router.get("/balance", auth, async (req, res) => {
 // Get Employee Leave Balance by ID (HR/Manager)
 router.get("/balance/:employeeId", auth, async (req, res) => {
   try {
-    const { year } = req.query;
-    const leaveYear = year || new Date().getFullYear();
+    const { year, leave_year } = req.query;
+    const leaveYear = year || leave_year || new Date().getFullYear();
 
     const c = await db();
     const [balances] = await c.query(
