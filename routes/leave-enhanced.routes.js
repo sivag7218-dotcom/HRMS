@@ -202,7 +202,9 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
         );
       }
 
-      // SYNC: Update existing leave balances for all employees using this plan
+      // AUTOMATIC SYNC: Apply plan changes to all assigned employees immediately
+      // Only updates existing balances or deletes removed types.
+      // New types require manual "Leave Initialization".
       const currentYear = new Date().getFullYear();
       const yearsToSync = [currentYear, currentYear + 1];
 
@@ -211,44 +213,53 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
         [req.params.id]
       );
 
-      console.log(`[LEAVE SYNC] Starting batch sync for ${assignedEmployees.length} employees for years ${yearsToSync.join(', ')}`);
+      if (assignedEmployees.length > 0) {
+        const empIds = assignedEmployees.map(e => e.id);
+        const empIdChunks = [];
+        for (let i = 0; i < empIds.length; i += 200) {
+          empIdChunks.push(empIds.slice(i, i + 200));
+        }
 
-      if (assignedEmployees.length > 0 && allocations.length > 0) {
+        const activeTypeIds = allocations.map(a => a.leave_type_id);
+
         for (const year of yearsToSync) {
-          // We build a single query to update/insert all allocations for all assigned employees for this year
-          // Using INSERT ... ON DUPLICATE KEY UPDATE
-          const values = [];
-          for (const emp of assignedEmployees) {
-            for (const alloc of allocations) {
-              const daysAllocated = Number(alloc.days_allocated) || 0;
-              values.push([
-                emp.id,
-                alloc.leave_type_id,
-                year,
-                daysAllocated,
-                0, // used_days (default if new)
-                daysAllocated // available_days (default if new)
-              ]);
+          // 1. DELETE balances for leave types removed from the plan
+          if (activeTypeIds.length > 0) {
+            for (const chunk of empIdChunks) {
+              await c.query(
+                `DELETE FROM employee_leave_balances 
+                 WHERE leave_year = ? AND employee_id IN (?) AND leave_type_id NOT IN (?)`,
+                [year, chunk, activeTypeIds]
+              );
+            }
+          } else {
+            for (const chunk of empIdChunks) {
+              await c.query(
+                `DELETE FROM employee_leave_balances 
+                 WHERE leave_year = ? AND employee_id IN (?)`,
+                [year, chunk]
+              );
             }
           }
 
-          // Chunk the insertions if they are too large (e.g., > 1000 records per query)
-          const chunkSize = 500;
-          for (let i = 0; i < values.length; i += chunkSize) {
-            const chunk = values.slice(i, i + chunkSize);
-            await c.query(
-              `INSERT INTO employee_leave_balances 
-               (employee_id, leave_type_id, leave_year, allocated_days, used_days, available_days)
-               VALUES ?
-               ON DUPLICATE KEY UPDATE 
-               available_days = VALUES(allocated_days) + COALESCE(carry_forward_days, 0) - COALESCE(used_days, 0),
-               allocated_days = VALUES(allocated_days)`,
-              [chunk]
-            );
-            console.log(`[LEAVE SYNC] Updated chunk of ${chunk.length} balances for year ${year}`);
+          // 2. UPDATE existing balances only
+          for (const alloc of allocations) {
+            const daysAllocated = Number(alloc.days_allocated) || 0;
+            const typeId = alloc.leave_type_id;
+
+            for (const chunk of empIdChunks) {
+              await c.query(
+                `UPDATE employee_leave_balances 
+                 SET 
+                   available_days = ? + COALESCE(carry_forward_days, 0) - COALESCE(used_days, 0),
+                   allocated_days = ?
+                 WHERE leave_year = ? AND leave_type_id = ? AND employee_id IN (?)`,
+                [daysAllocated, daysAllocated, year, typeId, chunk]
+              );
+            }
           }
         }
-        console.log(`[LEAVE SYNC] Batch sync completed successfully for Plan ID: ${req.params.id}`);
+        console.log(`[LEAVE SYNC] Plan ${req.params.id} auto-synced for ${assignedEmployees.length} employees`);
       }
     }
 
@@ -419,28 +430,24 @@ router.post("/initialize-balance/:employeeId", auth, hr, async (req, res) => {
         );
       }
 
-      // Check if balance already exists
-      const [existing] = await c.query(
-        `SELECT id FROM employee_leave_balances 
-                 WHERE employee_id = ? AND leave_type_id = ? AND leave_year = ?`,
-        [employeeId, allocation.leave_type_id, currentYear],
+      // Use INSERT ... ON DUPLICATE KEY UPDATE to handle both new and existing balances
+      await c.query(
+        `INSERT INTO employee_leave_balances 
+             (employee_id, leave_type_id, leave_year, allocated_days, used_days, carry_forward_days, available_days)
+           VALUES (?, ?, ?, ?, 0, 0, ?)
+           ON DUPLICATE KEY UPDATE 
+             available_days = ? + COALESCE(carry_forward_days, 0) - COALESCE(used_days, 0),
+             allocated_days = ?`,
+        [
+          employeeId,
+          allocation.leave_type_id,
+          currentYear,
+          allocatedDays,
+          allocatedDays, // initial available if new
+          allocatedDays, // update available calculation base
+          allocatedDays  // update allocated days
+        ],
       );
-
-      if (existing.length === 0) {
-        // Insert new balance
-        await c.query(
-          `INSERT INTO employee_leave_balances 
-                     (employee_id, leave_type_id, leave_year, allocated_days, used_days, carry_forward_days, available_days)
-                     VALUES (?, ?, ?, ?, 0, 0, ?)`,
-          [
-            employeeId,
-            allocation.leave_type_id,
-            currentYear,
-            allocatedDays,
-            allocatedDays,
-          ],
-        );
-      }
     }
 
     await c.commit();
