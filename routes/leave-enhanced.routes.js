@@ -155,10 +155,7 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
     await c.beginTransaction();
 
     // Fetch existing plan to preserve values missing in partial updates (e.g. from simpler allocation UI)
-    const [existingPlan] = await c.query(
-      "SELECT * FROM leave_plans WHERE id = ?",
-      [req.params.id],
-    );
+    const [existingPlan] = await c.query('SELECT * FROM leave_plans WHERE id = ?', [req.params.id]);
     if (existingPlan.length === 0) {
       await c.rollback();
       c.end();
@@ -213,17 +210,17 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
 
       const [assignedEmployees] = await c.query(
         `SELECT id FROM employees WHERE leave_plan_id = ?`,
-        [req.params.id],
+        [req.params.id]
       );
 
       if (assignedEmployees.length > 0) {
-        const empIds = assignedEmployees.map((e) => e.id);
+        const empIds = assignedEmployees.map(e => e.id);
         const empIdChunks = [];
         for (let i = 0; i < empIds.length; i += 200) {
           empIdChunks.push(empIds.slice(i, i + 200));
         }
 
-        const activeTypeIds = allocations.map((a) => a.leave_type_id);
+        const activeTypeIds = allocations.map(a => a.leave_type_id);
 
         for (const year of yearsToSync) {
           // 1. DELETE balances for leave types removed from the plan
@@ -232,7 +229,7 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
               await c.query(
                 `DELETE FROM employee_leave_balances 
                  WHERE leave_year = ? AND employee_id IN (?) AND leave_type_id NOT IN (?)`,
-                [year, chunk, activeTypeIds],
+                [year, chunk, activeTypeIds]
               );
             }
           } else {
@@ -240,7 +237,7 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
               await c.query(
                 `DELETE FROM employee_leave_balances 
                  WHERE leave_year = ? AND employee_id IN (?)`,
-                [year, chunk],
+                [year, chunk]
               );
             }
           }
@@ -257,14 +254,12 @@ router.put("/plans/:id", auth, hr, async (req, res) => {
                    available_days = ? + COALESCE(carry_forward_days, 0) - COALESCE(used_days, 0),
                    allocated_days = ?
                  WHERE leave_year = ? AND leave_type_id = ? AND employee_id IN (?)`,
-                [daysAllocated, daysAllocated, year, typeId, chunk],
+                [daysAllocated, daysAllocated, year, typeId, chunk]
               );
             }
           }
         }
-        console.log(
-          `[LEAVE SYNC] Plan ${req.params.id} auto-synced for ${assignedEmployees.length} employees`,
-        );
+        console.log(`[LEAVE SYNC] Plan ${req.params.id} auto-synced for ${assignedEmployees.length} employees`);
       }
     }
 
@@ -450,7 +445,7 @@ router.post("/initialize-balance/:employeeId", auth, hr, async (req, res) => {
           allocatedDays,
           allocatedDays, // initial available if new
           allocatedDays, // update available calculation base
-          allocatedDays, // update allocated days
+          allocatedDays  // update allocated days
         ],
       );
     }
@@ -714,6 +709,8 @@ router.post("/apply", auth, async (req, res) => {
       const [rows] = await c.query(
         `SELECT id, start_date, end_date FROM leaves WHERE employee_id = ? AND DATE(start_date) <= ? AND DATE(end_date) >= ? AND LOWER(status) != 'rejected'`,
         [emp.id, dStr, dStr],
+
+        
       );
       console.log(
         `[LEAVE DEBUG] Checking emp.id=${emp.id}, date=${dStr}, found=${rows.length}`,
@@ -969,7 +966,7 @@ router.get("/team-report", auth, async (req, res) => {
 
     // HR/Admin see all, Managers see only their team
     const isHR = ["admin", "hr"].includes(req.user.role);
-
+    
     let query = `
             SELECT 
                 l.*,
