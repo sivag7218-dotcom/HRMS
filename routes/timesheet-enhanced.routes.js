@@ -1221,4 +1221,63 @@ router.put("/manager/reject/:timesheetId", auth, async (req, res) => {
   }
 });
 
+/**
+ * Get Team Timesheet Report (HR/Manager) - Regular & Project
+ */
+router.get("/team-report", auth, async (req, res) => {
+  try {
+    const currentEmp = await findEmployeeByUserId(req.user.id);
+    if (!currentEmp) return res.status(404).json({ error: "Employee not found" });
+
+    const { startDate, endDate, status } = req.query;
+    const c = await db();
+
+    // HR/Admin see all, Managers see only their team
+    const isHR = ["admin", "hr"].includes(req.user.role);
+    
+    let query = `
+            SELECT 
+                t.*,
+                p.project_name,
+                p.project_code,
+                e.EmployeeNumber,
+                e.FirstName,
+                e.LastName,
+                e.FullName,
+                e.WorkEmail,
+                e.profile_image
+            FROM timesheets t
+            INNER JOIN employees e ON t.employee_id = e.id
+            LEFT JOIN projects p ON t.project_id = p.id
+            WHERE 1=1`;
+
+    const params = [];
+
+    if (!isHR) {
+      query += ` AND e.reporting_manager_id = ?`;
+      params.push(currentEmp.id);
+    }
+
+    if (startDate && endDate) {
+      query += ` AND t.date BETWEEN ? AND ?`;
+      params.push(startDate, endDate);
+    }
+
+    if (status) {
+      query += ` AND t.status = ?`;
+      params.push(status.toLowerCase());
+    }
+
+    query += ` ORDER BY t.date DESC, e.FirstName ASC`;
+
+    const [timesheets] = await c.query(query, params);
+
+    c.end();
+    res.json(timesheets);
+  } catch (error) {
+    console.error("Error fetching team timesheet report:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

@@ -707,7 +707,7 @@ router.post("/apply", auth, async (req, res) => {
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dStr = d.toISOString().split("T")[0];
       const [rows] = await c.query(
-        `SELECT id, start_date, end_date FROM leaves WHERE employee_id = ? AND DATE(start_date) <= ? AND DATE(end_date) >= ?`,
+        `SELECT id, start_date, end_date FROM leaves WHERE employee_id = ? AND DATE(start_date) <= ? AND DATE(end_date) >= ? AND LOWER(status) != 'rejected'`,
         [emp.id, dStr, dStr],
       );
       console.log(
@@ -948,6 +948,65 @@ router.get("/pending", auth, async (req, res) => {
     res.json(leaves);
   } catch (error) {
     console.error("Error fetching pending leaves:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Team Leave Report (HR/Manager) - Pending, Approved, Rejected
+router.get("/team-report", auth, async (req, res) => {
+  try {
+    const currentEmp = await findEmployeeByUserId(req.user.id);
+    if (!currentEmp)
+      return res.status(404).json({ error: "Employee not found" });
+
+    const { startDate, endDate, status } = req.query;
+    const c = await db();
+
+    // HR/Admin see all, Managers see only their team
+    const isHR = ["admin", "hr"].includes(req.user.role);
+    
+    let query = `
+            SELECT 
+                l.*,
+                lt.type_name,
+                lt.type_code,
+                e.EmployeeNumber,
+                e.FirstName,
+                e.LastName,
+                e.FullName,
+                e.WorkEmail,
+                e.profile_image,
+                u.full_name as approver_name
+            FROM leaves l
+            INNER JOIN leave_types lt ON l.leave_type_id = lt.id
+            INNER JOIN employees e ON l.employee_id = e.id
+            LEFT JOIN users u ON l.approver_id = u.id
+            WHERE 1=1`;
+
+    const params = [];
+
+    if (!isHR) {
+      query += ` AND e.reporting_manager_id = ?`;
+      params.push(currentEmp.id);
+    }
+
+    if (startDate && endDate) {
+      query += ` AND ((l.start_date BETWEEN ? AND ?) OR (l.end_date BETWEEN ? AND ?))`;
+      params.push(startDate, endDate, startDate, endDate);
+    }
+
+    if (status) {
+      query += ` AND l.status = ?`;
+      params.push(status.toLowerCase());
+    }
+
+    query += ` ORDER BY l.applied_at DESC`;
+
+    const [leaves] = await c.query(query, params);
+    c.end();
+    res.json(leaves);
+  } catch (error) {
+    console.error("Error fetching team leave report:", error);
     res.status(500).json({ error: error.message });
   }
 });
